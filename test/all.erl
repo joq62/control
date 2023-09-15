@@ -25,9 +25,10 @@
 start()->
    
     ok=setup(),
-
+    ok=node_test:start(),
     
-       % dbetcd
+    
+     
    
     io:format("Test OK !!! ~p~n",[?MODULE]),
     timer:sleep(2000),

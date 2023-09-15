@@ -4,28 +4,31 @@
 %%% @doc
 %%%
 %%% @end
-%%% Created :  2 Jun 2023 by c50 <joq62@c50>
+%%% Created : 18 Apr 2023 by c50 <joq62@c50>
 %%%-------------------------------------------------------------------
--module(control).
+-module(control_provider).
 
--behaviour(gen_server). 
+-behaviour(gen_server).
 %%--------------------------------------------------------------------
 %% Include 
 %%
 %%--------------------------------------------------------------------
 
 -include("log.api").
--define(LocalResourceTuples,[{control,node()}]).
--define(TargetTypes,[etcd]). 
-
--define(BuildPath,"ebin").
+ 
 
 %% API
 
+-export([
+	 load_provider/1,
+	 start_provider/1,
+	 stop_provider/1,
+	 unload_provider/1,
+	 is_alive/1,
 
--export([start/0,
-	 ping/0]).
-
+	 ping/0,
+	 stop/0
+	]).
 
 -export([start_link/0]).
 
@@ -40,13 +43,66 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Get all information related to host HostName  
+%% @end
+%%--------------------------------------------------------------------
+-spec load_provider(DeploymentRecord :: term()) -> ok | {error, Error :: term()}.
+
+load_provider(DeploymentRecord)->
+    gen_server:call(?SERVER, {load_provider,DeploymentRecord},infinity).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Get all information related to host HostName  
+%% @end
+%%--------------------------------------------------------------------
+-spec start_provider(DeploymentRecord :: term()) -> ok | {error, Error :: term()}.
+
+start_provider(DeploymentRecord)->
+    gen_server:call(?SERVER, {start_provider,DeploymentRecord},infinity).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Get all information related to host HostName  
+%% @end
+%%--------------------------------------------------------------------
+-spec stop_provider(DeploymentRecord :: term()) -> ok | {error, Error :: term()}.
+
+stop_provider(DeploymentRecord)->
+    gen_server:call(?SERVER, {stop_provider,DeploymentRecord},infinity).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Get all information related to host HostName  
+%% @end
+%%--------------------------------------------------------------------
+-spec unload_provider(DeploymentRecord :: term()) -> ok | {error, Error :: term()}.
+
+unload_provider(DeploymentRecord)->
+    gen_server:call(?SERVER, {unload_provider,DeploymentRecord},infinity).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Get all information related to host HostName  
+%% @end
+%%--------------------------------------------------------------------
+-spec is_alive(DeploymentRecord :: term()) -> IsDeployed :: boolean() | {error, Error :: term()}.
+
+is_alive(DeploymentRecord)->
+    gen_server:call(?SERVER, {is_alive,DeploymentRecord},infinity).
+
+
 %%--------------------------------------------------------------------
 %% @doc
 %% @spec
 %% @end
 %%--------------------------------------------------------------------
-start()->
-    application:start(?MODULE).
+ping()-> 
+    gen_server:call(?SERVER, {ping},infinity).
 %%--------------------------------------------------------------------
 %% @doc
 %% Starts the server
@@ -59,24 +115,12 @@ start()->
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
+
+stop()-> gen_server:call(?SERVER, {stop},infinity).
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
-%%--------------------------------------------------------------------
-%% @doc
-%% @spec
-%% @end
-%%--------------------------------------------------------------------
-
-
-
-%%--------------------------------------------------------------------
-%% @doc
-%% @spec
-%% @end
-%%--------------------------------------------------------------------
-ping()-> 
-    gen_server:call(?SERVER, {ping},infinity).    
 
 %%--------------------------------------------------------------------
 %% @private
@@ -89,46 +133,45 @@ ping()->
 	  {ok, State :: term(), hibernate} |
 	  {stop, Reason :: term()} |
 	  ignore.
+
 init([]) ->
-
- %% Announce to resource_discovery
-    Interval=10*1000,
-    Iterations=10,
-    true=check_rd_running(Interval,Iterations,false),
-    [rd:add_local_resource(ResourceType,Resource)||{ResourceType,Resource}<-?LocalResourceTuples],
-    [rd:add_target_resource_type(TargetType)||TargetType<-?TargetTypes],
-    rd:trade_resources(),
-      
-    %% ----------------------
-
-    ?LOG_NOTICE("Server started ",[]),
-  
+    
+    ?LOG_NOTICE("Server started ",[node()]),
     {ok, #state{}}.
 
+
 %%--------------------------------------------------------------------
-%% @private
 %% @doc
-%% Handling call messages
+%% @spec
 %% @end
 %%--------------------------------------------------------------------
--spec handle_call(Request :: term(), From :: {pid(), term()}, State :: term()) ->
-	  {reply, Reply :: term(), NewState :: term()} |
-	  {reply, Reply :: term(), NewState :: term(), Timeout :: timeout()} |
-	  {reply, Reply :: term(), NewState :: term(), hibernate} |
-	  {noreply, NewState :: term()} |
-	  {noreply, NewState :: term(), Timeout :: timeout()} |
-	  {noreply, NewState :: term(), hibernate} |
-	  {stop, Reason :: term(), Reply :: term(), NewState :: term()} |
-	  {stop, Reason :: term(), NewState :: term()}.
-
-
-
-handle_call({ping}, _From, State) ->
-    Reply = pong,
+handle_call({load_provider,DeploymentRecord}, _From, State) ->
+    Reply=lib_control_provider:load_provider(DeploymentRecord),
     {reply, Reply, State};
 
-handle_call(_Request, _From, State) ->
-    Reply = ok,
+handle_call({start_provider,DeploymentRecord}, _From, State) ->
+    Reply=lib_control_provider:start_provider(DeploymentRecord),
+    {reply, Reply, State};
+
+handle_call({stop_provider,DeploymentRecord}, _From, State) ->
+    Reply=lib_control_provider:stop_provider(DeploymentRecord),
+    {reply, Reply, State};
+
+handle_call({unload_provider,DeploymentRecord}, _From, State) ->
+    Reply=lib_control_provider:unload_provider(DeploymentRecord),
+    {reply, Reply, State};
+
+handle_call({is_alive,DeploymentRecord}, _From, State) ->
+    Reply=lib_control_provider:is_alive(DeploymentRecord),
+    {reply, Reply, State};
+
+handle_call({ping}, _From, State) ->
+    Reply=pong,
+    {reply, Reply, State};
+
+handle_call(UnMatchedSignal, From, State) ->
+    io:format("unmatched_signal ~p~n",[{UnMatchedSignal, From,?MODULE,?LINE}]),
+    Reply = {error,[unmatched_signal,UnMatchedSignal, From]},
     {reply, Reply, State}.
 
 %%--------------------------------------------------------------------
@@ -137,12 +180,8 @@ handle_call(_Request, _From, State) ->
 %% Handling cast messages
 %% @end
 %%--------------------------------------------------------------------
--spec handle_cast(Request :: term(), State :: term()) ->
-	  {noreply, NewState :: term()} |
-	  {noreply, NewState :: term(), Timeout :: timeout()} |
-	  {noreply, NewState :: term(), hibernate} |
-	  {stop, Reason :: term(), NewState :: term()}.
-handle_cast(_Request, State) ->
+handle_cast(UnMatchedSignal, State) ->
+    io:format("unmatched_signal ~p~n",[{UnMatchedSignal,?MODULE,?LINE}]),
     {noreply, State}.
 
 %%--------------------------------------------------------------------
@@ -156,7 +195,8 @@ handle_cast(_Request, State) ->
 	  {noreply, NewState :: term(), Timeout :: timeout()} |
 	  {noreply, NewState :: term(), hibernate} |
 	  {stop, Reason :: normal | term(), NewState :: term()}.
-handle_info(_Info, State) ->
+handle_info(Info, State) ->
+    io:format("unmatched_signal ~p~n",[{Info,?MODULE,?LINE}]),
     {noreply, State}.
 
 %%--------------------------------------------------------------------
@@ -202,21 +242,3 @@ format_status(_Opt, Status) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-check_rd_running(_Interval,N_,true)->
-    true;
-check_rd_running(Interval,0,true)->
-    true;
-check_rd_running(Interval,0,false)->
-    false;
-check_rd_running(Interval,N,IsRunning)->
-    case rpc:call(node(),rd,ping,[],5000) of
-	pong->
-	    NewIsRunning=true,
-	    NewN=N;
-	_->
-	    timer:sleep(Interval),
-	    NewIsRunning=false,
-	    NewN=N-1
-    end,
-    check_rd_running(Interval,NewN,NewIsRunning).
-	 

@@ -30,6 +30,8 @@ init([]) ->
                  intensity => 0,
                  period => 1},
     ChildSpecs = [
+		  #{id => control_node,               
+		    start => {control_node,start_link,[]}},
 		  #{id => control,               
 		    start => {control,start_link,[]}}
 		 ],
