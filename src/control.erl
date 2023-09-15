@@ -2,7 +2,7 @@
 %%% @author c50 <joq62@c50>
 %%% @copyright (C) 2023, c50
 %%% @doc
-%%%
+%%% 
 %%% @end
 %%% Created :  2 Jun 2023 by c50 <joq62@c50>
 %%%-------------------------------------------------------------------
@@ -17,10 +17,24 @@
 -include("log.api").
 -define(LocalResourceTuples,[{control,node()}]).
 -define(TargetTypes,[etcd]). 
+-define(InfraSpecId,"basic"). 
+
 
 -define(BuildPath,"ebin").
 
 %% API
+
+%%
+-export([
+%	 create_worker/1,
+%	 delete_worker/1,
+%	 load_provider/1,
+%	 start/1,
+%	 stop/1,
+%	 unload/1,
+	
+	 
+	 ping/0]).
 
 
 -export([start/0,
@@ -35,11 +49,68 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {}).
+%% Record and Data
+-record(state, {deployments}).
+
+%% Table or Data models
+%% ClusterSpec: Workers [{HostName,NumWorkers}],CookieStr,MainDir, 
+%% ProviderSpec: appl_name,vsn,app,erl_args,git_path
+%% DeploymentRecord: node_name,node,app, dir,provider,host
+
+%% WorkerDeployment: DeploymentId, ProviderSpec, DeploymentRecord
+%% Deployment: DeploymentId, ProviderId, Vsn, App, NodeName, HostName, NodeDir, ProviderDir,GitPath, Status : {status, time()}  
+%% Static if in file : DeploymentSpecId, ProviderId, Vsn, App,ProviderDir,GitPath
+%% Runtime:  DeploymentId,NodeName, HostName, NodeDir, Status
+%% 
+
 
 %%%===================================================================
 %%% API
 %%%===================================================================
+%%--------------------------------------------------------------------
+%% @doc
+%% Create provider directory and starts the slave node 
+%% @end
+%%--------------------------------------------------------------------
+-spec create_provider(Deployment :: string()) -> ok | 
+	  {error, Error :: [already_started]} | 
+	  {error, Error :: term()}.
+%%  Tabels or State
+%%  deployments: {Deployment,DeploymentTime,State(created,loaded, started, stopped, unloaded,deleted,error)
+
+create_provider(Deployment) ->
+    gen_server:call(?SERVER,{create_provider,Deployment},infinity).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Delete provider directory and stop the slave node
+%% @end
+%%--------------------------------------------------------------------
+-spec delete_provider(Deployment :: string()) -> ok | 
+	  {error, Error :: [already_started]} |
+	  {error, Error :: term()}.
+%%  Tabels or State
+%%  deployments: {Deployment,DeploymentTime,State(created,loaded, started, stopped, unloaded,deleted,error)
+
+delete_provider(Deployment) ->
+    gen_server:call(?SERVER,{delete_provider,Deployment},infinity).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Load the provider application on to the created slave node 
+%% @end
+%%--------------------------------------------------------------------
+-spec load_provider(Deployment :: string()) -> ok | 
+	  {error, Error :: [already_started]} |
+	  {error, Error :: [node_not_started]} |
+	  {error, Error :: term()}.
+%%  Tabels or State
+%%  deployments: {Deployment,DeploymentTime,State(created,loaded, started, stopped, unloaded,deleted,error)
+
+load_provider(Deployment) ->
+    gen_server:call(?SERVER,{load_provider,Deployment},infinity).
+
+
 %%--------------------------------------------------------------------
 %% @doc
 %% @spec
@@ -100,6 +171,23 @@ init([]) ->
     rd:trade_resources(),
       
     %% ----------------------
+    %% ----------------------
+    
+    %% set cookie 
+    {ok,CookieStr}=etcd_infra:get_cookie_str(?InfraSpecId),
+    erlang:set_cookie(list_to_atom(CookieStr)),
+    %% create worker nodes dirs
+    {ok,HostName}=net:gethostname(),
+    {ok,NumWorkers}=etcd_infra:get_num_workers(?InfraSpecId,HostName),
+    WorkerDefinitions=lib_control:define_workers(NumWorkers,CookieStr,HostName),
+    
+    DelDirR=lib_control:delete_dirs(WorkerDefinitions),
+    CreateDirR=lib_control:create_dirs(WorkerDefinitions),
+    NodeStartsR=lib_control:start_nodes(WorkerDefinitions),
+ 
+    ?LOG_NOTICE("DelDirR ",[DelDirR]),
+    ?LOG_NOTICE("CreateDirR ",[CreateDirR]),
+    ?LOG_NOTICE("NodeStartsR ",[NodeStartsR]),
 
     ?LOG_NOTICE("Server started ",[]),
   
@@ -122,6 +210,20 @@ init([]) ->
 	  {stop, Reason :: term(), NewState :: term()}.
 
 
+
+handle_call({create,Deployment}, _From, State) ->
+    Reply = pong,
+    {reply, Reply, State};
+
+
+handle_call({delete,Deployment}, _From, State) ->
+    Reply = pong,
+    {reply, Reply, State};
+
+
+handle_call({start,Deployment}, _From, State) ->
+    Reply = pong,
+    {reply, Reply, State};
 
 handle_call({ping}, _From, State) ->
     Reply = pong,
