@@ -57,6 +57,6 @@ eunit:
 	rm -rf _build*;
 #	Application specific
 	erl -pa ebin -pa test_ebin\
-	    -sname do_test\
+	    -sname control_a\
 	    -run $(m) start\
 	    -setcookie test_cookie

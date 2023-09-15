@@ -176,6 +176,12 @@ init([]) ->
     %% set cookie 
     {ok,CookieStr}=etcd_infra:get_cookie_str(?InfraSpecId),
     erlang:set_cookie(list_to_atom(CookieStr)),
+
+    %% Connect nodes
+    ThisNode=node(),
+    {ok,ConnecNodes}=etcd_infra:get_connect_nodes(?InfraSpecId),
+    ConnectR=[{net_adm:ping(N),N}||N<-ConnecNodes],
+		%	  N=:=ThisNode],
     %% create worker nodes dirs
     {ok,HostName}=net:gethostname(),
     {ok,NumWorkers}=etcd_infra:get_num_workers(?InfraSpecId,HostName),
@@ -185,6 +191,7 @@ init([]) ->
     CreateDirR=lib_control:create_dirs(WorkerDefinitions),
     NodeStartsR=lib_control:start_nodes(WorkerDefinitions),
  
+    ?LOG_NOTICE("ConnectR ",[ConnectR]),
     ?LOG_NOTICE("DelDirR ",[DelDirR]),
     ?LOG_NOTICE("CreateDirR ",[CreateDirR]),
     ?LOG_NOTICE("NodeStartsR ",[NodeStartsR]),
