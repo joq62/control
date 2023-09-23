@@ -27,9 +27,7 @@ start()->
     ok=setup(),
   %  ok=node_test:start(),
     
-    
-     
-   
+ 
     io:format("Test OK !!! ~p~n",[?MODULE]),
     timer:sleep(2000),
 %    init:stop(),

@@ -15,8 +15,8 @@
 %%--------------------------------------------------------------------
 
 -include("log.api").
--define(LocalResourceTuples,[{control,node()}]).
--define(TargetTypes,[etcd]). 
+-define(LocalResourceTuples,[{control,node()},{etcd,node()},{log,node()}]).
+-define(TargetTypes,[etcd,log]). 
 -define(InfraSpecId,"basic"). 
 
 

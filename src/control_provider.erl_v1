@@ -146,23 +146,25 @@ init([]) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_call({load_provider,DeploymentRecord}, _From, State) ->
-    Reply=lib_control_provider:load_provider(DeploymentRecord),
-    {reply, Reply, State};
-
-handle_call({start_provider,DeploymentRecord}, _From, State) ->
-    Reply=lib_control_provider:start_provider(DeploymentRecord),
-    {reply, Reply, State};
-
-handle_call({stop_provider,DeploymentRecord}, _From, State) ->
-    Reply=lib_control_provider:stop_provider(DeploymentRecord),
+    
+    Reply=lib_control_provider:load(ProviderNode,IaasDir,Provider,App,GitPath),
     {reply, Reply, State};
 
 handle_call({unload_provider,DeploymentRecord}, _From, State) ->
-    Reply=lib_control_provider:unload_provider(DeploymentRecord),
+    
+    Reply=lib_control_provider:unload(ProviderNode,IaasDir,Provider,App),
+    {reply, Reply, State};
+
+handle_call({start_provider,DeploymentRecord}, _From, State) ->
+    Reply=lib_control_provider:start(ProviderNode,App),
+    {reply, Reply, State};
+
+handle_call({stop_provider,DeploymentRecord}, _From, State) ->
+    Reply=lib_control_provider:stop(ProviderNode,App),
     {reply, Reply, State};
 
 handle_call({is_alive,DeploymentRecord}, _From, State) ->
-    Reply=lib_control_provider:is_alive(DeploymentRecord),
+    Reply=lib_control_provider:is_alive(ProviderNode,App),
     {reply, Reply, State};
 
 handle_call({ping}, _From, State) ->
