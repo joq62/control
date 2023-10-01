@@ -396,6 +396,30 @@ handle_cast(UnMatchedSignal, State) ->
 	  {noreply, NewState :: term(), Timeout :: timeout()} |
 	  {noreply, NewState :: term(), hibernate} |
 	  {stop, Reason :: normal | term(), NewState :: term()}.
+
+handle_info({nodedown,Node}, State) ->
+    NodeRecordList=[NodeRecord||NodeRecord<-State#state.node_records,
+				Node=:=NodeRecord#node_record.node],
+    case NodeRecordList of
+	[]->
+	    NewState=State,
+	    {error,["Node not part of cluster ",Node,?MODULE,?LINE]};
+	[R]->
+	    lib_node:stop_delete_node(R),
+	    case  lib_node:create_start_node(R) of
+		{error,Reason}->
+		    NewState=State,
+		    {error,Reason};
+		{ok,UpdatedR}->
+		    NewState=State#state{node_records=[UpdatedR|lists:delete(R,State#state.node_records)]},
+		    ok
+	    end
+    end,
+  %  io:format("DBGnodedown  Node, NodeRecordList, UpdateR  ~p~n",[{Node,NodeRecordList,[NodeRecord||NodeRecord<-NewState#state.node_records,
+%				Node=:=NodeRecord#node_record.node],?MODULE,?LINE}]),
+    {noreply, NewState};
+
+
 handle_info(Info, State) ->
     io:format("unmatched_signal ~p~n",[{Info,?MODULE,?LINE}]),
     {noreply, State}.

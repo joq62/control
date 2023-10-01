@@ -74,7 +74,8 @@ create_start_node(R)->
 			   {error,["Already running ",?MODULE,?LINE,ProviderNode,NodeName,CookieStr,ErlArgs]};
 		       {error,Reason}->
 			   {error,["Failed to start Node ",?MODULE,?LINE,Reason,NodeName,CookieStr,ErlArgs]};
-		       {ok,_ProviderNode}->	
+		       {ok,ProviderNode}->	
+			   erlang:monitor_node(ProviderNode,true),
 			  {ok, R#node_record{status=free,status_time={date(),time()}}}
 		   end
 	   end,
