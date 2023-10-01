@@ -2,11 +2,14 @@
 %%% @author c50 <joq62@c50>
 %%% @copyright (C) 2023, c50
 %%% @doc
-%%%
+%%% 1.load(ProviderNode,IaasDir,Provider,App,GitPath)-
+%%% 2.unload(ProviderNode,IaasDir,Provider,App)
+%%% 3.start(ProviderNode,App)
+%%% 4.stop(ProviderNode,App)
 %%% @end
 %%% Created : 18 Apr 2023 by c50 <joq62@c50>
 %%%-------------------------------------------------------------------
--module(control_provider).
+-module(provider).
 
 -behaviour(gen_server).
 %%--------------------------------------------------------------------
@@ -38,7 +41,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {}).
+-record(state, {loaded,started,stopped,unloaded}).
 
 %%%===================================================================
 %%% API

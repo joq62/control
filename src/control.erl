@@ -24,17 +24,17 @@
 
 %% API
 
-%%
+%% Node
 -export([
 %	 create_worker/1,
 %	 delete_worker/1,
 %	 load_provider/1,
 %	 start/1,
 %	 stop/1,
-%	 unload/1,
+%	 unload/1
 	
 	 
-	 ping/0]).
+	]).
 
 
 -export([start/0,
@@ -162,6 +162,13 @@ ping()->
 	  ignore.
 init([]) ->
 
+    %% Connect nodes
+    ThisNode=node(),
+    {ok,ConnecNodes}=etcd_infra:get_connect_nodes(?InfraSpecId),
+    ConnectR=[{net_adm:ping(N),N}||N<-ConnecNodes],
+		%	  N=:=ThisNode],
+
+
  %% Announce to resource_discovery
     Interval=10*1000,
     Iterations=10,
@@ -170,32 +177,6 @@ init([]) ->
     [rd:add_target_resource_type(TargetType)||TargetType<-?TargetTypes],
     rd:trade_resources(),
       
-    %% ----------------------
-    %% ----------------------
-    
-    %% set cookie 
-    {ok,CookieStr}=etcd_infra:get_cookie_str(?InfraSpecId),
-    erlang:set_cookie(list_to_atom(CookieStr)),
-
-    %% Connect nodes
-    ThisNode=node(),
-    {ok,ConnecNodes}=etcd_infra:get_connect_nodes(?InfraSpecId),
-    ConnectR=[{net_adm:ping(N),N}||N<-ConnecNodes],
-		%	  N=:=ThisNode],
-    %% create worker nodes dirs
-    {ok,HostName}=net:gethostname(),
-    {ok,NumWorkers}=etcd_infra:get_num_workers(?InfraSpecId,HostName),
-    WorkerDefinitions=lib_control:define_workers(NumWorkers,CookieStr,HostName),
-    
-    DelDirR=lib_control:delete_dirs(WorkerDefinitions),
-    CreateDirR=lib_control:create_dirs(WorkerDefinitions),
-    NodeStartsR=lib_control:start_nodes(WorkerDefinitions),
- 
-    ?LOG_NOTICE("ConnectR ",[ConnectR]),
-    ?LOG_NOTICE("DelDirR ",[DelDirR]),
-    ?LOG_NOTICE("CreateDirR ",[CreateDirR]),
-    ?LOG_NOTICE("NodeStartsR ",[NodeStartsR]),
-
     ?LOG_NOTICE("Server started ",[]),
   
     {ok, #state{}}.

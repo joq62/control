@@ -6,8 +6,8 @@
 %%% @end
 %%% Created : 31 Jul 2023 by c50 <joq62@c50>
 %%%-------------------------------------------------------------------
--module(lib_control_provider).
-
+-module(lib_provider).
+ 
 %% API
 -export([
 	 load/5,

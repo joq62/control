@@ -2,7 +2,7 @@
 %%% @author c50 <joq62@c50>
 %%% @copyright (C) 2023, c50
 %%% @doc
-%%%
+%%% Data: Nodename,cookie, node, status(allocated,free,stopped)
 %%% @end
 %%% Created : 18 Apr 2023 by c50 <joq62@c50>
 %%%-------------------------------------------------------------------
@@ -15,15 +15,31 @@
 %%--------------------------------------------------------------------
 
 -include("log.api").
- 
+-include("node_record.hrl").
+
+-define(InfraSpecId,"basic"). 
 
 %% API
 
+
+%% admin
 -export([
+	 get_wanted_state/0,
+	 is_wanted_state/0,
 	 
-	 start_node/1,
-	 stop_node/1,
+	 create_start_node/2,
+	 stop_delete_node/1,
+	 allocate/0,
+	 free/1,
+	 
+	
 	 is_alive/1,
+	 get_free/0,
+	 get_allocated/0,
+	 get_deleted/0,
+	 get_not_created/0,
+	 
+	 dbg_get_state/0,
 
 	 ping/0,
 	 stop/0
@@ -36,8 +52,12 @@
 	 terminate/2, code_change/3, format_status/2]).
 
 -define(SERVER, ?MODULE).
-
--record(state, {}).
+		     
+-record(state, {
+		wanted_state,   %% List of {Nodename,NodeDir} 
+		wanted_state_status,
+		node_records    %% 
+	       }).
 
 %%%===================================================================
 %%% API
@@ -48,20 +68,105 @@
 %% Get all information related to host HostName  
 %% @end
 %%--------------------------------------------------------------------
--spec start_node(NodeName :: string()) -> {ok,ProviderNode :: node()} | {error, Error :: term()}.
+-spec get_wanted_state() -> WantedState :: term().
 
-start_node(NodeName)->
-    gen_server:call(?SERVER, {start_node,NodeName},infinity).
+get_wanted_state()->
+    gen_server:call(?SERVER, {get_wanted_state},infinity).
+
 
 %%--------------------------------------------------------------------
 %% @doc
 %% Get all information related to host HostName  
 %% @end
 %%--------------------------------------------------------------------
--spec stop_node(ProviderNode :: atom()) -> ok | {error, Error :: term()}.
+-spec is_wanted_state() -> true | {false,WhyNot :: term()}.
 
-stop_node(ProviderNode)->
-    gen_server:call(?SERVER, {stop_node,ProviderNode},infinity).
+is_wanted_state()->
+    gen_server:call(?SERVER, {is_wanted_state},infinity).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Get all information related to host HostName  
+%% @end
+%%--------------------------------------------------------------------
+-spec allocate() -> {ok,Id :: integer(), Node :: node(),NodeDir :: string()} | {error, Reason :: term()}.
+
+allocate()->
+    gen_server:call(?SERVER, {allocate},infinity).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Get all information related to host HostName  
+%% @end
+%%--------------------------------------------------------------------
+-spec free(Id :: integer()) -> ok | {error, Reason :: term()}.
+
+free(Id)->
+    gen_server:call(?SERVER, {free,Id},infinity).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Get all information related to host HostName  
+%% @end
+%%--------------------------------------------------------------------
+-spec get_free() -> ListOfFreeNodeRecords :: term().
+
+get_free()->
+    gen_server:call(?SERVER, {get_free},infinity).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Get all information related to host HostName  
+%% @end
+%%--------------------------------------------------------------------
+-spec get_allocated() -> ListOfAllocatedNodeRecords :: term().
+
+get_allocated()->
+    gen_server:call(?SERVER, {get_allocated},infinity).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Get all information related to host HostName  
+%% @end
+%%--------------------------------------------------------------------
+-spec get_deleted() -> ListOfDeletedNodeRecords :: term().
+
+get_deleted()->
+    gen_server:call(?SERVER, {get_deleted},infinity).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Get all information related to host HostName  
+%% @end
+%%--------------------------------------------------------------------
+-spec get_not_created() -> ListOfNotCreatedNodeRecords :: term().
+
+get_not_created()->
+    gen_server:call(?SERVER, {get_not_created},infinity).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Get all information related to host HostName  
+%% @end
+%%--------------------------------------------------------------------
+-spec create_start_node(NodeName :: string(),NodeDir :: string()) -> {ok,ProviderNode :: node(),NodeDir :: string()} | {error, Error :: term()}.
+
+create_start_node(NodeName,NodeDir)->
+    gen_server:call(?SERVER, {create_start_node,NodeName,NodeDir},infinity).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Get all information related to host HostName  
+%% @end
+%%--------------------------------------------------------------------
+-spec stop_delete_node(ProviderNode :: atom()) -> ok | {error, Error :: term()}.
+
+stop_delete_node(ProviderNode)->
+    gen_server:call(?SERVER, {stop_delete_node,ProviderNode},infinity).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -81,6 +186,14 @@ is_alive(ProviderNode)->
 %%--------------------------------------------------------------------
 ping()-> 
     gen_server:call(?SERVER, {ping},infinity).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @spec
+%% @end
+%%--------------------------------------------------------------------
+dbg_get_state()-> 
+    gen_server:call(?SERVER, {dbg_get_state},infinity).
 %%--------------------------------------------------------------------
 %% @doc
 %% Starts the server
@@ -114,8 +227,36 @@ stop()-> gen_server:call(?SERVER, {stop},infinity).
 
 init([]) ->
     
+    %% Connect nodes
+    {ok,ConnecNodes}=etcd_infra:get_connect_nodes(?InfraSpecId),
+    ConnectR=[{net_adm:ping(N),N}||N<-ConnecNodes],
+
+    %% set cookie 
+    {ok,CookieStr}=etcd_infra:get_cookie_str(?InfraSpecId),
+    erlang:set_cookie(list_to_atom(CookieStr)),
+
+    {ok,HostName}=net:gethostname(),
+    {ok,NumNodes}=etcd_infra:get_num_workers(?InfraSpecId,HostName),
+    WantedState=lib_node:create_wanted_state(NumNodes,CookieStr,HostName),
+    
+    
+    DelDirR=[{R#node_record.node_dir,rpc:call(node(),file,del_dir_r,[R#node_record.node_dir],5000)}||R<-WantedState],
+    CreateStartNodesR=[lib_node:create_start_node(R)||R<-WantedState],
+    NodeRecords=[R||{ok,R}<-CreateStartNodesR],
+    
+    IsWantedState=lib_node:is_wanted_state(WantedState),
+    
+    ?LOG_NOTICE("ConnectR ",[ConnectR]),
+    ?LOG_NOTICE("DelDirR ",[DelDirR]),
+    ?LOG_NOTICE("CreateStartNodesR ",[CreateStartNodesR]),
+    ?LOG_NOTICE("IsWantedState Nodes ",[IsWantedState]),
+    
     ?LOG_NOTICE("Server started ",[node()]),
-    {ok, #state{}}.
+    {ok, #state{
+	    wanted_state=WantedState,   
+	    wanted_state_status=IsWantedState,
+	    node_records=NodeRecords 
+	   }}.
 
 
 %%--------------------------------------------------------------------
@@ -123,18 +264,106 @@ init([]) ->
 %% @spec
 %% @end
 %%--------------------------------------------------------------------
-handle_call({start_node,NodeName}, _From, State) ->
-    Reply=lib_control_node:start_node(NodeName),
+
+handle_call({allocate}, _From, State) ->
+    FreeNodeRecords=[NodeRecord||NodeRecord<-State#state.node_records,
+				 free=:=NodeRecord#node_record.status],
+    Reply = case FreeNodeRecords of
+		[]->
+		    NewState=State,
+		    {error,["No available nodes ",?MODULE,?LINE]};
+		[FreeNodRecord|_]->
+		    L=lists:delete(FreeNodRecord,State#state.node_records),
+		    R=FreeNodRecord#node_record{status=allocated,status_time={date(),time()}},
+		    NewState=State#state{node_records=[R|L]},
+		    {ok,R#node_record.allocated_id,R#node_record.node,R#node_record.node_dir}
+	    end,
+    {reply, Reply, NewState};
+
+handle_call({free,AllocatedId}, _From, State) ->
+    AllocatedRecord=[NodeRecord||NodeRecord<-State#state.node_records,
+				 AllocatedId=:=NodeRecord#node_record.allocated_id],
+    Reply = case AllocatedRecord of
+		[]->
+		    NewState=State,
+		    {error,["No matched for allocate_id ",AllocatedId,?MODULE,?LINE]};
+		[AllocatedNodRecord]->
+		    L=lists:delete(AllocatedNodRecord,State#state.node_records),
+		    R=AllocatedNodRecord#node_record{status=free,status_time={date(),time()}},
+		    NewState=State#state{node_records=[R|L]},
+		    ok
+	    end,
+    {reply, Reply, NewState};
+
+
+handle_call({get_wanted_state}, _From, State) ->
+    Reply=State#state.wanted_state,
     {reply, Reply, State};
 
-handle_call({stop_node,ProviderNode}, _From, State) ->
-    Reply=lib_control_node:stop_node(ProviderNode),
+handle_call({get_not_created}, _From, State) ->
+    Reply=[NodeRecord||NodeRecord<-State#state.node_records,
+		       not_created=:=NodeRecord#node_record.status],
     {reply, Reply, State};
+
+handle_call({get_free}, _From, State) ->
+    Reply=[NodeRecord||NodeRecord<-State#state.node_records,
+		       free=:=NodeRecord#node_record.status],
+    {reply, Reply, State};
+
+handle_call({get_allocated}, _From, State) ->
+    Reply=[NodeRecord||NodeRecord<-State#state.node_records,
+		       allocated=:=NodeRecord#node_record.status],
+    {reply, Reply, State};
+
+handle_call({get_deleted}, _From, State) ->
+    Reply=[NodeRecord||NodeRecord<-State#state.node_records,
+		       deleted=:=NodeRecord#node_record.status],
+    {reply, Reply, State};
+
+handle_call({create_start_node,NodeName,NodeDir}, _From, State) ->
+    Reply=case lib_node:create_start_node(NodeName,NodeDir) of
+	      {error,Reason}->
+		  NewState=State,
+		  {error,Reason};
+	      {ok,ProviderNode}->
+		  R=#node_record{
+		       allocated_id=os:system_time(microsecond),
+		       nodename=NodeName,
+		       node_dir=NodeDir,
+		       status=free,    %free,allocated, stopped
+		       status_time={date(),time()},   %when latest status was chenged
+		       node=ProviderNode},
+		  NewState=State#state{node_records=[R|State#state.node_records]},
+		  {ok,ProviderNode,NodeDir}
+	  end,
+    {reply, Reply, NewState};
+
+handle_call({stop_delete_node,AllocateId}, _From, State) ->
+    NodeRecords=[NodeRecord||NodeRecord=#node_record{allocated_id=AllocateId}<-State#state.node_records],
+    Reply=case NodeRecords of
+	      []->
+		  NewState=State,
+		  {error,["Node record does note exists",AllocateId,?MODULE,?LINE]};
+	      [NR]->
+		  case lib_node:stop_delete_node(NR#node_record.node,NR#node_record.node_dir) of
+		      {error,Reason}->
+			  NewState=State,
+			  {error,Reason};
+		      ok->
+			  NewState=State#state{node_records=lists:delete(NR,State#state.node_records)},
+			  ok
+		  end
+	  end,
+    {reply, Reply, NewState};
 
 handle_call({is_alive,ProviderNode}, _From, State) ->
     Reply=lib_control_node:is_alive(ProviderNode),
     {reply, Reply, State};
 
+
+handle_call({dbg_get_state}, _From, State) ->
+    Reply=State,
+    {reply, Reply, State};
 
 handle_call({ping}, _From, State) ->
     Reply=pong,

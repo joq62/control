@@ -11,7 +11,8 @@
 -define(Iterations,100).
 %% API
 -export([
-	 
+	 create_node_dir/1,
+	 delete_node_dir/1,
 	 start_node/1,
 	 stop_node/1,
 	 is_alive/1
@@ -60,8 +61,12 @@ start_node(NodeName)->
 %%--------------------------------------------------------------------
 stop_node(ProviderNode)->
     slave:stop(ProviderNode),
-    is_node_stopped(ProviderNode).   
-
+    case is_node_stopped(ProviderNode) of
+	false->
+	    {error,["Failed to stop node ",ProviderNode,?MODULE,?LINE]};
+	true ->
+	    ok
+    end.
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================

@@ -62,4 +62,4 @@ eunit:
 	erl -pa ebin -pa test_ebin\
 	    -sname control_a\
 	    -run $(m) start\
-	    -setcookie test_cookie
+	    -setcookie a

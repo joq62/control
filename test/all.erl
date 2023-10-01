@@ -25,7 +25,7 @@
 start()->
    
     ok=setup(),
-  %  ok=node_test:start(),
+    ok=node_test:start(),
     
  
     io:format("Test OK !!! ~p~n",[?MODULE]),
