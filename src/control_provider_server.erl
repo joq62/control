@@ -162,7 +162,7 @@ init([]) ->
 %% @spec
 %% @end
 %%--------------------------------------------------------------------
-handle_call({set_wanted_state,DeploymentSpec}, _From, State) when State#state.is_deployed=:=true ->
+handle_call({set_wanted_state,_DeploymentSpec}, _From, State) when State#state.is_deployed=:=true ->
     io:format("set_wanted_state true ~p~n",[{?MODULE,?LINE}]),
     Reply={error,["Wanted State is already deployed ",?MODULE,?LINE]},
     {reply, Reply, State};
@@ -173,34 +173,77 @@ handle_call({set_wanted_state,DeploymentSpec}, _From,   State) when State#state.
 	      {error,Reason}->
 		  NewState=State,
 		  {error,Reason};
-	      {ok,Deployments}->
-		  io:format("Deployments ~p~n",[{Deployments,?MODULE,?LINE}]),
+	      {ok,{Successfull,Failed}}->
+		  io:format("Successfull,Failed ~p~n",[{Successfull,Failed,?MODULE,?LINE}]),
+		  case Failed of
+		      []->
+			  ok;
+		      Failed->
+			  ?LOG_WARNING("Failed to load start ",[Failed])
+		  end,
 		  NewState=State#state{
 			     is_deployed=true,
 			     wanted_state=DeploymentSpec,
-			     deployments=Deployments},
+			     deployments=Successfull},
 		  ok
 	  end,
     {reply, Reply, NewState};
 
-handle_call({load_provider,DeploymentRecord}, _From, State) ->
-    Reply=lib_control_provider:load_provider(DeploymentRecord),
+handle_call({load_provider,Provider}, _From, State) ->
+    Reply=case lib_provider:load(Provider) of 
+	      {error,Reason}->
+		  NewState=State,
+		  {error,[Provider,Reason]};
+	      {ok,Id,Node,NodeDir,Provider,App}->
+		  NewState=State#state{deployments=[{Id,Node,NodeDir,Provider,App}|State#state.deployments]},
+		  {ok,Id}
+	  end,
+    {reply, Reply, NewState};
+
+handle_call({unload_provider,Id}, _From, State) ->
+    Reply=case lists:keyfind(Id,1,State#state.deployments) of
+	      false->
+		  NewState=State,
+		  {error,["Id doesnt exists ",Id]};
+	      {Id,Node,NodeDir,_Provider,App}->
+		  case lib_provider:unload(Id,Node,NodeDir,App) of
+		      {error,Reason}->
+			  NewState=State,
+			  {error,Reason};
+		      ok->
+			  NewState=State#state{deployments=lists:keydelete(Id,1,State#state.deployments)},
+			  ok
+		  end
+	  end,
+    {reply, Reply, NewState};
+
+handle_call({start_provider,Id}, _From, State) ->
+    Reply=case lists:keyfind(Id,1,State#state.deployments) of
+	      false->
+		  {error,["Id doesnt exists ",Id]};
+	      {_Id,Node,_NodeDir,_Provider,App}->
+		  lib_provider:start(Node,App)
+	  end,
     {reply, Reply, State};
 
-handle_call({start_provider,DeploymentRecord}, _From, State) ->
-    Reply=lib_control_provider:start_provider(DeploymentRecord),
+handle_call({stop_provider,Id}, _From, State) ->
+    Reply=case lists:keyfind(Id,1,State#state.deployments) of
+	      false->
+		  {error,["Id doesnt exists ",Id]};
+	      {_Id,Node,_NodeDir,_Provider,App}->
+		  lib_provider:stop(Node,App)
+	  end,
     {reply, Reply, State};
 
-handle_call({stop_provider,DeploymentRecord}, _From, State) ->
-    Reply=lib_control_provider:stop_provider(DeploymentRecord),
-    {reply, Reply, State};
 
-handle_call({unload_provider,DeploymentRecord}, _From, State) ->
-    Reply=lib_control_provider:unload_provider(DeploymentRecord),
-    {reply, Reply, State};
 
-handle_call({is_alive,DeploymentRecord}, _From, State) ->
-    Reply=lib_control_provider:is_alive(DeploymentRecord),
+handle_call({is_alive,Id}, _From, State) ->
+    Reply=case lists:keyfind(Id,1,State#state.deployments) of
+	      false->
+		  {error,["Id doesnt exists ",Id]};
+	      {_Id,Node,_NodeDir,_Provider,App}->
+		  lib_provider:is_alive(Node,App)
+	  end,
     {reply, Reply, State};
 
 handle_call({ping}, _From, State) ->

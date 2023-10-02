@@ -13,7 +13,6 @@
 
 	 set_wanted_state/1,
 
-	 load/1,
 	 load/5,
 	 unload/4,
 	 start/2,
@@ -36,15 +35,13 @@ set_wanted_state(DeploymentSpec)->
 		   FilteredDeploymentList=[{Provider,HostName}||{Provider,HostName}<-DeploymentList,
 								MyHostName=:=HostName],
 
-		   {Successfull,Failed}=load_start(FilteredDeploymentList,[]),	   
-		   {ok,{Successfull,Failed}}
+		   LoadStart=load_start(FilteredDeploymentList,[]),	   
+		   {ok,LoadStart}
 	   end,
     Result.
 
 load_start([],LoadStart)->
-    Successfull=[{Id,Node,NodeDir,Provider,App}||{ok,Id,Node,NodeDir,Provider,App}<-LoadStart],
-    Failed=[{error,Reason}||{error,Reason}<-LoadStart],
-    {Successfull,Failed};    
+    LoadStart;    
 load_start([{Provider,_HostName}|T],Acc)->
     Result=case control_node:allocate() of
 	       {error,Reason}->
@@ -61,12 +58,12 @@ load_start([{Provider,_HostName}|T],Acc)->
 				   case load(Node,NodeDir,Provider,App,GitPath) of
 				       {error,Reason}->
 					   {error,[Provider,Reason]};
-				       {ok,ProviderDir}->
+				       ok->
 					   case start(Node,App) of
 					       {error,Reason}->
 						   {error,[Provider,Reason]};
 					       ok->
-						   {ok,Id,Node,ProviderDir,Provider,App}
+						   {ok,Id,Node,NodeDir,Provider,App,GitPath}
 					   end
 				   end
 			   end
@@ -92,31 +89,6 @@ is_alive(ProviderNode,App)->
 %% @spec
 %% @end
 %%--------------------------------------------------------------------
-load(Provider)->
-    Result=case control_node:allocate() of
-	       {error,Reason}->
-		   {error,[Provider,Reason]};
-	       {ok,Id,Node,NodeDir}->
-		   case etcd_application:get_app(Provider) of
-		       {error,Reason}->
-			   {error,[Provider,Reason]};
-		       {ok,App}->
-			   case etcd_application:get_git_path(Provider) of
-			       {error,Reason}->
-				   {error,[Provider,Reason]};
-			       {ok,GitPath}->
-				   case load(Node,NodeDir,Provider,App,GitPath) of
-				       {error,Reason}->
-					   {error,[Provider,Reason]};
-				       {ok,ProviderDir}->
-					   {ok,Id,Node,ProviderDir,Provider,App}
-				   end
-			   end
-		   end
-	   end,
-    Result.
-					   
-
 load(ProviderNode,IaasDir,Provider,App,GitPath)->
     %% Create dir for provider in IaasDir
     ProviderDir=filename:join(IaasDir,Provider),
@@ -142,7 +114,7 @@ load(ProviderNode,IaasDir,Provider,App,GitPath)->
 				       {error,Reason}->
 					   {error,["Failed to load Application  ",App,?MODULE,?LINE,Reason]};
 				       ok->
-					   {ok,ProviderDir}
+					   ok
 				   end
 			   end
 		   end
@@ -153,17 +125,19 @@ load(ProviderNode,IaasDir,Provider,App,GitPath)->
 %% @spec
 %% @end
 %%--------------------------------------------------------------------
-unload(Id,Node,ProviderDir,App)->
-    rpc:call(Node,application,stop,[App],5000),
-    rpc:call(node(),file,del_dir_r,[ProviderDir],5000),
-    Result=case control_node:free(Id) of
+unload(ProviderNode,IaasDir,Provider,App)->
+    %% delete dir for provider in IaasDir
+    ProviderDir=filename:join(IaasDir,Provider),
+    rpc:call(ProviderNode,file,del_dir_r,[ProviderDir],5000),
+    Result=case rpc:call(ProviderNode,application,unload,[App],5000) of
+	       {badrpc,Reason}->
+		   {error,["Failed to unload Application on Node ",App,ProviderNode,?MODULE,?LINE,Reason]};
 	       {error,Reason}->
-		   {error,[Id,Node,ProviderDir,App,Reason]};
+		   {error,["Failed to unload Application on Node ",App,ProviderNode,?MODULE,?LINE,Reason]};
 	       ok->
 		   ok
 	   end,
-    Result.
-    
+    Result.			
 %%--------------------------------------------------------------------
 %% @doc
 %% @spec

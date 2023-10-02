@@ -30,7 +30,8 @@ start()->
   
     ok=setup(),
     ok=test_0(),
-     ok=test_1(),
+    ok=test_1(),
+    ok=test_2(),
       
     io:format("Test OK !!! ~p~n",[?MODULE]),
     timer:sleep(2000),
@@ -71,6 +72,31 @@ test_1()->
     [{adder,'2_a@c50'}]=rd:fetch_resources(adder),
     42=rd:call(adder,adder,add,[20,22],5000),
     42=rd:call(adder,add,[20,22],5000),
+
+    
+    ok.
+%%--------------------------------------------------------------------
+%% @doc
+%% @spec
+%% @end
+%%--------------------------------------------------------------------
+test_2()->
+    io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
+    
+    %% start another adder 
+    {ok,Id2}=control_provider_server:load_provider("adder"),
+    ok=control_provider_server:start_provider(Id2),
+    
+    timer:sleep(3000),
+    [Resource1,Resource2]=rd:fetch_resources(adder),
+    io:format("Resource1,Resource2 ~p~n",[{Resource1,Resource2,?MODULE,?FUNCTION_NAME}]),
+    {adder,Node2}=Resource2,
+    pong=rpc:call(Node2,adder,ping,[],5000),
+    ok=control_provider_server:stop_provider(Id2),
+    ok=control_provider_server:unload_provider(Id2),
+    
+    {badrpc,_}=rpc:call(Node2,adder,ping,[],5000),
+    
     ok.
 
 
