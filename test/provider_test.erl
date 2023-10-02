@@ -70,6 +70,7 @@ test_1()->
     timer:sleep(3000),
     [{adder,'2_a@c50'}]=rd:fetch_resources(adder),
     42=rd:call(adder,adder,add,[20,22],5000),
+    42=rd:call(adder,add,[20,22],5000),
     ok.
 
 
