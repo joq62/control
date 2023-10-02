@@ -13,6 +13,9 @@
 
 -define(DeploymentSpec,"test_c50").
 
+-define(LocalResourceTuples,[]).
+-define(TargetTypes,[adder,divi]). 
+
 %%%===================================================================
 %%% API
 %%%===================================================================
@@ -27,7 +30,7 @@ start()->
   
     ok=setup(),
     ok=test_0(),
- 
+     ok=test_1(),
       
     io:format("Test OK !!! ~p~n",[?MODULE]),
     timer:sleep(2000),
@@ -56,7 +59,18 @@ test_0()->
 %% @spec
 %% @end
 %%--------------------------------------------------------------------
-
+test_1()->
+    io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
+    
+    %% Announce to resource_discovery
+    [rd:add_local_resource(ResourceType,Resource)||{ResourceType,Resource}<-?LocalResourceTuples],
+    [rd:add_target_resource_type(TargetType)||TargetType<-?TargetTypes],
+    rd:trade_resources(),
+    
+    timer:sleep(3000),
+    [{adder,'2_a@c50'}]=rd:fetch_resources(adder),
+    42=rd:call(adder,adder,add,[20,22],5000),
+    ok.
 
 
 

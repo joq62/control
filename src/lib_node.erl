@@ -51,7 +51,7 @@ create_wanted_state(N,CookieStr,HostName,Acc) ->
     NodeDir=NStr++"_"++CookieStr,
     Node=list_to_atom(NodeName++"@"++HostName),
     R=#node_record{
-	 allocated_id=os:system_time(microsecond),
+	 allocated_id=os:system_time(nanosecond),
 	 hostname=HostName,
 	 nodename=NodeName,
 	 node_dir=NodeDir,

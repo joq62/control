@@ -41,6 +41,7 @@
 	 
 	 dbg_get_state/0,
 
+	 kill/0,
 	 ping/0,
 	 stop/0
 	]).
@@ -62,7 +63,13 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
-
+%%--------------------------------------------------------------------
+%% @doc
+%% @spec
+%% @end
+%%--------------------------------------------------------------------
+kill()->
+    gen_server:call(?SERVER, {kill},infinity).
 %%--------------------------------------------------------------------
 %% @doc
 %% Get all information related to host HostName  
@@ -207,7 +214,8 @@ start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 
-stop()-> gen_server:call(?SERVER, {stop},infinity).
+%stop()-> gen_server:cast(?SERVER, {stop}).
+stop()-> gen_server:stop(?SERVER).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -264,6 +272,12 @@ init([]) ->
 %% @spec
 %% @end
 %%--------------------------------------------------------------------
+
+handle_call({kill}, _From, State) ->
+    Reply=1/0,
+    {reply, Reply, State};
+
+
 
 handle_call({allocate}, _From, State) ->
     FreeNodeRecords=[NodeRecord||NodeRecord<-State#state.node_records,
@@ -369,7 +383,6 @@ handle_call({ping}, _From, State) ->
     Reply=pong,
     {reply, Reply, State};
 
-
 handle_call(UnMatchedSignal, From, State) ->
     io:format("unmatched_signal ~p~n",[{UnMatchedSignal, From,?MODULE,?LINE}]),
     Reply = {error,[unmatched_signal,UnMatchedSignal, From]},
@@ -381,6 +394,10 @@ handle_call(UnMatchedSignal, From, State) ->
 %% Handling cast messages
 %% @end
 %%--------------------------------------------------------------------
+handle_cast({stop}, State) ->
+    
+    {stop,normal,ok,State};
+
 handle_cast(UnMatchedSignal, State) ->
     io:format("unmatched_signal ~p~n",[{UnMatchedSignal,?MODULE,?LINE}]),
     {noreply, State}.

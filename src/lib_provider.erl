@@ -34,9 +34,43 @@ set_wanted_state(DeploymentSpec)->
 		   {ok,MyHostName}=net:gethostname(),
 		   FilteredDeploymentList=[{Provider,HostName}||{Provider,HostName}<-DeploymentList,
 								MyHostName=:=HostName],
-		   {ok,FilteredDeploymentList}
+
+		   LoadStart=load_start(FilteredDeploymentList,[]),	   
+		   {ok,LoadStart}
 	   end,
     Result.
+
+load_start([],LoadStart)->
+    LoadStart;    
+load_start([{Provider,_HostName}|T],Acc)->
+    Result=case control_node:allocate() of
+	       {error,Reason}->
+		   {error,[Provider,Reason]};
+	       {ok,Id,Node,NodeDir}->
+		   case etcd_application:get_app(Provider) of
+		       {error,Reason}->
+			   {error,[Provider,Reason]};
+		       {ok,App}->
+			   case etcd_application:get_git_path(Provider) of
+			       {error,Reason}->
+				   {error,[Provider,Reason]};
+			       {ok,GitPath}->
+				   case load(Node,NodeDir,Provider,App,GitPath) of
+				       {error,Reason}->
+					   {error,[Provider,Reason]};
+				       ok->
+					   case start(Node,App) of
+					       {error,Reason}->
+						   {error,[Provider,Reason]};
+					       ok->
+						   {ok,Id,Node,NodeDir,Provider,App,GitPath}
+					   end
+				   end
+			   end
+		   end
+	   end,
+    load_start(T,[Result|Acc]).
+
 %%--------------------------------------------------------------------
 %% @doc
 %% @spec
