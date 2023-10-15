@@ -59,6 +59,11 @@ test_kill()->
     timer:sleep(5000),
     L2=rd:fetch_resources(adder),
     io:format("L2 ~p~n",[{L2,?MODULE,?LINE}]),
+    [slave:stop(N)||{_,N}<-L2],
+    timer:sleep(5000),
+    L3=rd:fetch_resources(adder),
+    io:format("L3 ~p~n",[{L3,?MODULE,?LINE}]),
+
     ok.
 %%--------------------------------------------------------------------
 %% @doc

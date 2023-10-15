@@ -430,7 +430,8 @@ handle_info({nodedown,Node}, State) ->
 		    NewState=State,
 		    {error,Reason};
 		{ok,UpdatedR}->
-		    NewState=State#state{node_records=[UpdatedR|lists:delete(R,State#state.node_records)]},
+		   % NewState=State#state{node_records=[UpdatedR|lists:delete(R,State#state.node_records)]},
+		    NewState=State#state{node_records=lists:reverse([UpdatedR|lists:delete(R,State#state.node_records)])},
 		    ok
 	    end
     end,
