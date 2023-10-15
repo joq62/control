@@ -179,7 +179,6 @@ handle_call({set_wanted_state,_DeploymentSpec}, _From, State) when State#state.i
     {reply, Reply, State};
 
 handle_call({set_wanted_state,DeploymentSpec}, _From,   State) when State#state.is_deployed=:=false ->
-    io:format("set_wanted_state false ~p~n",[{?MODULE,?LINE}]),
     Reply=case lib_provider:set_wanted_state(DeploymentSpec) of
 	      {error,Reason}->
 		  NewState=State,
@@ -192,7 +191,7 @@ handle_call({set_wanted_state,DeploymentSpec}, _From,   State) when State#state.
 		      Failed->
 			  ?LOG_WARNING("Failed to load start ",[Failed])
 		  end,
-		  NewNodes=[Node||{ok,_Id,Node,_NodeDir,_Provider,_App}<-Successfull],
+		  NewNodes=[Node||{_Id,Node,_NodeDir,_Provider,_App}<-Successfull],
 		  NewNodesToMonitor=[Node||Node<-NewNodes,
 					   false=:=lists:member(Node,State#state.monitored_nodes)],
 		  [erlang:monitor_node(Node,true)||Node<-NewNodesToMonitor],
@@ -307,6 +306,31 @@ handle_cast(UnMatchedSignal, State) ->
 	  {noreply, NewState :: term(), Timeout :: timeout()} |
 	  {noreply, NewState :: term(), hibernate} |
 	  {stop, Reason :: normal | term(), NewState :: term()}.
+
+handle_info({nodedown,Node}, State) ->
+    io:format("nodedown ~p~n",[{Node,?MODULE,?LINE}]),
+    case lists:keyfind(Node,2,State#state.deployments) of
+	false->
+	    io:format("error ~p~n",[{"eexists Node ",Node,?MODULE,?LINE}]),
+	    {error,["eexists Node ",Node,?MODULE,?LINE]};
+	{Id,Node,NodeDir,Provider,App}->
+	    io:format("ok  ~p~n",[{?MODULE,?LINE}]),
+	    L1=lists:delete({Id,Node,NodeDir,Provider,App},State#state.deployments),
+	    case lib_provider:load_start(Provider) of
+		{error,Reason}->
+		    io:format("error  ~p~n",[{Reason,?MODULE,?LINE}]),
+		    NewState=State#state{deployments=L1,
+					 monitored_nodes=lists:delete(Node,State#state.monitored_nodes)};
+		{ok,NewId,NewNode,NewNodeDir,Provider,App}->
+		    io:format("ok NewId,NewNode,NewNodeDir,Provider,App ~p~n",[{NewId,NewNode,NewNodeDir,Provider,App,?MODULE,?LINE}]),
+		    erlang:monitor_node(Node,true),
+		    NodesToMonitor=lists:usort([Node|State#state.monitored_nodes]),		  
+		    NewState=State#state{deployments=[{NewId,NewNode,NewNodeDir,Provider,App}|L1],
+					 monitored_nodes=NodesToMonitor}
+	    end
+    end,
+    {noreply, State};
+
 handle_info(Info, State) ->
     io:format("unmatched_signal ~p~n",[{Info,?MODULE,?LINE}]),
     {noreply, State}.

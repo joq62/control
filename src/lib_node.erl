@@ -108,7 +108,7 @@ create_start_node(R)->
 								   {error,["Failed to start rd ",Reason,?MODULE,?LINE]};
 							       ok->
 								   erlang:monitor_node(ProviderNode,true),
-								   {ok, R#node_record{status=free,status_time={date(),time()},node=ProviderNode}}
+								   {ok, R#node_record{ allocated_id=os:system_time(nanosecond),status=free,status_time={date(),time()},node=ProviderNode}}
 							   end
 						   end
 					   end

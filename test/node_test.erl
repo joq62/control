@@ -78,7 +78,7 @@ test_1()->
      {node_record,_,"c50","8_a","8_a","a",free,{D,_},'8_a@c50'},
      {node_record,_,"c50","9_a","9_a","a",free,{D,_},'9_a@c50'}
     ]=control_node:get_free(),
-    []=control_node:get_allocated(),
+    [{node_record,_,"c50","1_a","1_a","a",allocated,{_,_},'1_a@c50'}]=control_node:get_allocated(),
     []=control_node:get_deleted(),
     []=control_node:get_not_created(),
 

@@ -13,6 +13,8 @@
 
 	 set_wanted_state/1,
 
+	 load_start/1,
+
 	 load/1,
 	 load/5,
 	 unload/4,
@@ -86,7 +88,27 @@ is_alive(ProviderNode,App)->
 	pong->
 	    true
     end.
-								 
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @spec
+%% @end
+%%--------------------------------------------------------------------
+load_start(Provider)->
+    Result=case load(Provider) of
+	       {error,Reason}->
+		   {error,Reason};
+	       {ok,Id,Node,ProviderDir,Provider,App} ->
+		   case start(Node,App) of
+		       {error,Reason}->
+			   control_node:free(Id),
+			   {error,Reason};
+		       ok->
+			   {ok,Id,Node,ProviderDir,Provider,App}
+		   end
+	   end,					 
+    Result.
 %%--------------------------------------------------------------------
 %% @doc
 %% @spec

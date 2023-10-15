@@ -10,11 +10,15 @@
 
 %% API
 -export([start/0]).
-
+-define(MainLogDir,"logs").
+-define(LocalLogDir,"to_be_changed.logs").
+-define(LogFile,"logfile").
+-define(MaxNumFiles,10).
+-define(MaxNumBytes,100000).
 -define(DeploymentSpec,"test_c50").
 
 -define(LocalResourceTuples,[]).
--define(TargetTypes,[adder,divi]). 
+-define(TargetTypes,[adder,etcd,log,control]). 
 
 %%%===================================================================
 %%% API
@@ -30,17 +34,32 @@ start()->
   
     ok=setup(),
     ok=test_0(),
-%    ok=test_1(),
+    ok=test_kill(),
       
     io:format("Test OK !!! ~p~n",[?MODULE]),
     timer:sleep(2000),
-%    init:stop(),
+ %   init:stop(),
     ok.
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
+%%--------------------------------------------------------------------
+%% @doc
+%% @spec
+%% @end
+%%--------------------------------------------------------------------
+test_kill()->
+    io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
+    L1=rd:fetch_resources(adder),
+    io:format("L1 ~p~n",[{L1,?MODULE,?LINE}]),
+    [{adder,Node1},_]=L1,
+    io:format("Node1 ~p~n",[{Node1,?MODULE,?LINE}]),
+    slave:stop(Node1),
+    timer:sleep(5000),
+    L2=rd:fetch_resources(adder),
+    io:format("L2 ~p~n",[{L2,?MODULE,?LINE}]),
+    ok.
 %%--------------------------------------------------------------------
 %% @doc
 %% @spec
@@ -52,9 +71,16 @@ test_0()->
     [_]=rd:fetch_resources(adder),
     42=rd:call(adder,adder,add,[20,22],5000),
     42=rd:call(adder,add,[20,22],5000),
-
     {ok,Id1}=control:load_start("adder"),
+    
+    
+    
     [_,_]=rd:fetch_resources(adder),
+
+    pong=rd:call(control,ping,[],5000),
+    pong=rd:call(etcd,ping,[],5000), 
+    {error,[eexists_resources]}=rd:call(log,ping,[],5000),
+ 
 
     ok.
     
@@ -89,6 +115,25 @@ test_2()->
 %%--------------------------------------------------------------------
 setup()->
     io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
-   
+    
+    
+    file:del_dir_r(?MainLogDir),
+      
+    ok=application:start(log),
+    pong=log:ping(),
+    LocalLogDir=atom_to_list(node())++".logs",
+    ok=log:create_logger(?MainLogDir,LocalLogDir,?LogFile,?MaxNumFiles,?MaxNumBytes),
+    
+    ok=application:start(rd),
+    pong=rd:ping(),
+    ok=application:start(etcd),
+    pong=etcd:ping(),
+
+    ok=application:start(control),
     pong=control:ping(),
+    [rd:add_local_resource(ResourceType,Resource)||{ResourceType,Resource}<-?LocalResourceTuples],
+    [rd:add_target_resource_type(TargetType)||TargetType<-?TargetTypes],
+    rd:trade_resources(),
+    timer:sleep(2000),
     ok.
+   

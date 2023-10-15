@@ -259,7 +259,7 @@ init([]) ->
     ?LOG_NOTICE("DelDirR ",[DelDirR]),
     ?LOG_NOTICE("CreateStartNodesR ",[CreateStartNodesR]),
     ?LOG_NOTICE("IsWantedState Nodes ",[IsWantedState]),
-    
+   
     ?LOG_NOTICE("Server started ",[node()]),
     {ok, #state{
 	    wanted_state=WantedState,   

@@ -15,6 +15,7 @@
 %%--------------------------------------------------------------------
 
 -include("control.resource_discovery").
+-include("control_config.hrl").
 -include("log.api").
 
 -define(InfraSpecId,"basic"). 
@@ -256,7 +257,11 @@ init([]) ->
     [rd:add_target_resource_type(TargetType)||TargetType<-?TargetTypes],
     rd:trade_resources(),
       
+    ok=control_provider_server:set_wanted_state(?PermanentDeploymentSpec),
+    
+    
     ?LOG_NOTICE("Server started ",[]),
+    
  
     {ok, #state{deployments=[]}}.
 
