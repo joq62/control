@@ -82,7 +82,6 @@ create_start_node(R)->
 		       {error,Reason}->
 			   {error,["Failed to start Node ",?MODULE,?LINE,Reason,NodeName,CookieStr,ErlArgs]};
 		       {ok,ProviderNode}->	
-			   erlang:monitor_node(ProviderNode,true),
 			   %% start log and resource_discovery that are in controls ebin
 			   case code:where_is_file("log.app") of
 			       non_existing ->
@@ -108,7 +107,8 @@ create_start_node(R)->
 							       {error,Reason}->
 								   {error,["Failed to start rd ",Reason,?MODULE,?LINE]};
 							       ok->
-								   {ok, R#node_record{status=free,status_time={date(),time()}}}
+								   erlang:monitor_node(ProviderNode,true),
+								   {ok, R#node_record{status=free,status_time={date(),time()},node=ProviderNode}}
 							   end
 						   end
 					   end

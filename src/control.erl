@@ -8,7 +8,7 @@
 %%%-------------------------------------------------------------------
 -module(control).
 
--behaviour(gen_server). 
+-behaviour(gen_server).  
 %%--------------------------------------------------------------------
 %% Include 
 %%
@@ -24,7 +24,28 @@
 
 %% API
 
-%% Node
+%% Application handling API
+
+-export([
+	 load_start/1,      
+	 stop_unload/1,
+	 reload/2,
+	 get_deployments/0
+	]).
+
+%% Oam handling API
+
+-export([
+%	 all/0,
+%	 all_nodes/0,
+%	 all_providers/0,
+%	 where_is/1,
+%	 is_wanted_state/0
+	]).
+
+
+
+%% Debug API
 -export([
 %	 create_worker/1,
 %	 delete_worker/1,
@@ -67,6 +88,66 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+%%--------------------------------------------------------------------
+%% @doc
+%% This function is an user interface to be complementary to automated
+%% load and start a provider at this host.
+%% In v1.0.0 the deployment will not be persistant   
+%% @end
+%%--------------------------------------------------------------------
+-spec load_start(ProviderSpec :: string()) -> {ok,DeploymentId :: integer()} | 
+	  {error, Error :: term()}.
+%%  Tabels or State
+%% Deployment: {DeploymentId,ProviderSpec,date(),time()}
+%%  Deployments: [Deployment]
+
+load_start(ProviderSpec) ->
+    gen_server:call(?SERVER,{load_start,ProviderSpec},infinity).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% This function is an user interface to be complementary to automated
+%% stop and unload a provider at this host.
+%% In v1.0.0 the deployment will not be persistant   
+%% @end
+%%--------------------------------------------------------------------
+-spec stop_unload(DeploymentId :: integer()) -> ok | 
+	  {error, Error :: term()}.
+%%  Tabels or State
+%% Deployment: {DeploymentId,ProviderSpec,date(),time()}
+%%  Deployments: [Deployment]
+
+stop_unload(DeploymentId) ->
+    gen_server:call(?SERVER,{stop_unload,DeploymentId},infinity).
+%--------------------------------------------------------------------
+%% @doc
+%% reload(DeploymentId) will stop_unload and load and start the provider   
+%% @end
+%%--------------------------------------------------------------------
+-spec reload(DeploymentId :: integer(),ProviderSpec :: string()) -> {ok,NewDeploymentId :: integer()} | 
+	  {error, Error :: term()}.
+%%  Tabels or State
+%% Deployment: {DeploymentId,ProviderSpec,date(),time()}
+%%  Deployments: [Deployment]
+
+reload(DeploymentId,ProviderSpec) ->
+    gen_server:call(?SERVER,{reload,DeploymentId,ProviderSpec},infinity).
+
+%--------------------------------------------------------------------
+%% @doc
+%% get_deployments returns list of deployed providers   
+%% @end
+%%--------------------------------------------------------------------
+-spec get_deployments() -> DeploymentList :: term() | 
+	  {error, Error :: term()}.
+%%  Tabels or State
+%% Deployment: {DeploymentId,ProviderSpec,date(),time()}
+%%  Deployments: [Deployment]
+
+get_deployments() ->
+    gen_server:call(?SERVER,{get_deployments},infinity).
+
+
 %%--------------------------------------------------------------------
 %% @doc
 %% Create provider directory and starts the slave node 
@@ -177,7 +258,7 @@ init([]) ->
       
     ?LOG_NOTICE("Server started ",[]),
  
-    {ok, #state{}}.
+    {ok, #state{deployments=[]}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -197,19 +278,77 @@ init([]) ->
 
 
 
-handle_call({create,Deployment}, _From, State) ->
-    Reply = pong,
+handle_call({load_start,ProviderSpec}, _From, State) ->
+    Reply = case control_provider_server:load_provider(ProviderSpec) of
+		{error,Reason}->
+		    NewState=State,
+		    {error,Reason};
+		{ok,DeploymentId}->
+		    case control_provider_server:start_provider(DeploymentId) of
+			{error,Reason}->
+			    NewState=State,
+			    {error,Reason};
+			ok->
+			    Deployments=State#state.deployments,
+			    NewState=State#state{deployments=[{DeploymentId,ProviderSpec,date(),time()}|Deployments]},
+			    {ok,DeploymentId}
+		    end
+	    end,
+						 
+    {reply, Reply, NewState};
+
+handle_call({stop_unload,DeploymentId}, _From, State) ->
+    Reply = case control_provider_server:stop_provider(DeploymentId) of
+		{error,Reason}->
+		    NewState=State,
+		    {error,Reason};
+		ok->
+		    case control_provider_server:unload_provider(DeploymentId) of
+			{error,Reason}->
+			    NewState=State,
+			    {error,Reason};
+			ok->
+			    ReducedDeployments=lists:keydelete(DeploymentId,1,State#state.deployments),
+			    NewState=State#state{deployments=ReducedDeployments},
+			    ok
+		    end
+	    end,
+    {reply, Reply, NewState};
+
+handle_call({reload,DeploymentId,ProviderSpec}, _From, State) ->
+    Reply = case control_provider_server:stop_provider(DeploymentId) of
+		{error,Reason}->
+		    NewState=State,
+		    {error,Reason};
+		ok->
+		    case control_provider_server:unload_provider(DeploymentId) of
+			{error,Reason}->
+			    NewState=State,
+			    {error,Reason};
+			ok->
+			    case control_provider_server:load_provider(ProviderSpec) of
+				{error,Reason}->
+				    NewState=State,
+				    {error,Reason};
+				{ok,NewDeploymentId}->
+				    case control_provider_server:start_provider(NewDeploymentId) of
+					{error,Reason}->
+					    NewState=State,
+					    {error,Reason};
+					ok->
+					    ReducedDeployments=lists:keydelete(DeploymentId,1,State#state.deployments),
+					    NewState=State#state{deployments=[{NewDeploymentId,ProviderSpec,date(),time()}|ReducedDeployments]},
+					    ok
+				    end
+			    end
+		    end
+	    end,
+    {reply, Reply, NewState}; 
+
+handle_call({get_deployments}, _From, State) ->
+    Reply = State#state.deployments,
     {reply, Reply, State};
 
-
-handle_call({delete,Deployment}, _From, State) ->
-    Reply = pong,
-    {reply, Reply, State};
-
-
-handle_call({start,Deployment}, _From, State) ->
-    Reply = pong,
-    {reply, Reply, State};
 
 handle_call({ping}, _From, State) ->
     Reply = pong,

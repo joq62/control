@@ -250,6 +250,7 @@ init([]) ->
     
     DelDirR=[{R#node_record.node_dir,rpc:call(node(),file,del_dir_r,[R#node_record.node_dir],5000)}||R<-WantedState],
     CreateStartNodesR=[lib_node:create_start_node(R)||R<-WantedState],
+      
     NodeRecords=[R||{ok,R}<-CreateStartNodesR],
     
     IsWantedState=lib_node:is_wanted_state(WantedState),
@@ -263,7 +264,7 @@ init([]) ->
     {ok, #state{
 	    wanted_state=WantedState,   
 	    wanted_state_status=IsWantedState,
-	    node_records=NodeRecords 
+	    node_records=NodeRecords
 	   }}.
 
 
@@ -303,6 +304,7 @@ handle_call({free,AllocatedId}, _From, State) ->
 		    {error,["No matched for allocate_id ",AllocatedId,?MODULE,?LINE]};
 		[AllocatedNodRecord]->
 		    L=lists:delete(AllocatedNodRecord,State#state.node_records),
+		    slave:stop(AllocatedNodRecord#node_record.node),		    
 		    R=AllocatedNodRecord#node_record{status=free,status_time={date(),time()}},
 		    NewState=State#state{node_records=[R|L]},
 		    ok
@@ -432,8 +434,8 @@ handle_info({nodedown,Node}, State) ->
 		    ok
 	    end
     end,
-  %  io:format("DBGnodedown  Node, NodeRecordList, UpdateR  ~p~n",[{Node,NodeRecordList,[NodeRecord||NodeRecord<-NewState#state.node_records,
-%				Node=:=NodeRecord#node_record.node],?MODULE,?LINE}]),
+    io:format("DBGnodedown  Node, NodeRecordList, UpdateR  ~p~n",[{Node,NodeRecordList,[NodeRecord||NodeRecord<-NewState#state.node_records,
+												    Node=:=NodeRecord#node_record.node],?MODULE,?LINE}]),
     {noreply, NewState};
 
 

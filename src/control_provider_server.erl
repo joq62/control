@@ -21,7 +21,7 @@
 
 -export([
 	 set_wanted_state/1,
-
+	 get_deployments/0,
 	 load_provider/1,
 	 start_provider/1,
 	 stop_provider/1,
@@ -43,7 +43,8 @@
 -record(state, {
 		is_deployed,
 		wanted_state,
-		deployments
+		deployments,
+		monitored_nodes
 	       }).
 
 %%%===================================================================
@@ -51,6 +52,15 @@
 %%%===================================================================
 
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Get all information related to host HostName  
+%% @end
+%%--------------------------------------------------------------------
+-spec get_deployments() -> DeploymentList :: term().
+
+get_deployments()->
+    gen_server:call(?SERVER, {get_deployments},infinity).
 %%--------------------------------------------------------------------
 %% @doc
 %% Get all information related to host HostName  
@@ -154,7 +164,8 @@ stop()-> gen_server:call(?SERVER, {stop},infinity).
 init([]) ->
     
     ?LOG_NOTICE("Server started ",[]),
-    {ok, #state{is_deployed=false}}.
+    {ok, #state{is_deployed=false,
+		monitored_nodes=[]}}.
 
 
 %%--------------------------------------------------------------------
@@ -181,10 +192,16 @@ handle_call({set_wanted_state,DeploymentSpec}, _From,   State) when State#state.
 		      Failed->
 			  ?LOG_WARNING("Failed to load start ",[Failed])
 		  end,
+		  NewNodes=[Node||{ok,_Id,Node,_NodeDir,_Provider,_App}<-Successfull],
+		  NewNodesToMonitor=[Node||Node<-NewNodes,
+					   false=:=lists:member(Node,State#state.monitored_nodes)],
+		  [erlang:monitor_node(Node,true)||Node<-NewNodesToMonitor],
+		  NodesToMonitor=lists:usort(lists:append(State#state.monitored_nodes,NewNodesToMonitor)),		  
 		  NewState=State#state{
 			     is_deployed=true,
 			     wanted_state=DeploymentSpec,
-			     deployments=Successfull},
+			     deployments=Successfull,
+			     monitored_nodes=NodesToMonitor},
 		  ok
 	  end,
     {reply, Reply, NewState};
@@ -195,8 +212,16 @@ handle_call({load_provider,Provider}, _From, State) ->
 		  NewState=State,
 		  {error,[Provider,Reason]};
 	      {ok,Id,Node,NodeDir,Provider,App}->
-		  NewState=State#state{deployments=[{Id,Node,NodeDir,Provider,App}|State#state.deployments]},
-		  {ok,Id}
+		  case lists:member(Node,State#state.monitored_nodes) of
+		      false->
+			  erlang:monitor_node(Node,true),
+			  NewState=State#state{deployments=[{Id,Node,NodeDir,Provider,App}|State#state.deployments],
+					       monitored_nodes=[Node|State#state.monitored_nodes]},
+			  {ok,Id};
+		      true->
+			  NewState=State#state{deployments=[{Id,Node,NodeDir,Provider,App}|State#state.deployments]},
+			  {ok,Id}
+		  end
 	  end,
     {reply, Reply, NewState};
 
@@ -211,7 +236,9 @@ handle_call({unload_provider,Id}, _From, State) ->
 			  NewState=State,
 			  {error,Reason};
 		      ok->
-			  NewState=State#state{deployments=lists:keydelete(Id,1,State#state.deployments)},
+			  erlang:monitor_node(Node,false),
+			  NewState=State#state{deployments=lists:keydelete(Id,1,State#state.deployments),
+					       monitored_nodes=lists:delete(Node,State#state.monitored_nodes)},
 			  ok
 		  end
 	  end,
@@ -244,6 +271,10 @@ handle_call({is_alive,Id}, _From, State) ->
 	      {_Id,Node,_NodeDir,_Provider,App}->
 		  lib_provider:is_alive(Node,App)
 	  end,
+    {reply, Reply, State};
+
+handle_call({get_deployments}, _From, State) ->
+    Reply=State#state.deployments,
     {reply, Reply, State};
 
 handle_call({ping}, _From, State) ->

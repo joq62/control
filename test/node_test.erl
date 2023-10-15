@@ -127,6 +127,9 @@ test_1()->
     []=control_node:get_deleted(),
     []=control_node:get_not_created(),
     
+    %% kill node
+    slave:stop('8_a@c50'),
+
     All=[{R#node_record.node,rpc:call(R#node_record.node,application,which_applications,[],5000)}||R<-control_node:get_free()],
     io:format("All ~p~n",[{All,?MODULE,?LINE}]),
     ok.
