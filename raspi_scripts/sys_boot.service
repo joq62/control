@@ -1,0 +1,3 @@
+#!/bin/bash
+cd /home/ubuntu;
+/usr/bin/erl -pa /home/ubuntu/control_provider/ebin -sname control_a  -setcookie a -run control_provider start -detached &
