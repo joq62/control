@@ -88,8 +88,8 @@ test_2()->
     ok=control_provider_server:start_provider(Id2),
     
     timer:sleep(3000),
-    [Resource1,Resource2,Resource3]=rd:fetch_resources(adder),
-    io:format("Resource1,Resource2,Resource3 ~p~n",[{Resource1,Resource2,Resource3,?MODULE,?FUNCTION_NAME}]),
+    [Resource1,Resource2]=rd:fetch_resources(adder),
+    io:format("Resource1,Resource2 ~p~n",[{Resource1,Resource2,?MODULE,?FUNCTION_NAME}]),
     {adder,Node1}=Resource1,
     pong=rpc:call(Node1,adder,ping,[],5000),
     ok=control_provider_server:stop_provider(Id2),

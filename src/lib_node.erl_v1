@@ -11,11 +11,11 @@
 
 -include("node_record.hrl").
 
--define(MainLogDir,"logs").
--define(LocalLogDir,"to_be_changed.logs").
--define(LogFile,"logfile").
--define(MaxNumFiles,10).
--define(MaxNumBytes,100000).
+%-define(MainLogDir,"logs").
+%-define(LocalLogDir,"to_be_changed.logs").
+%-define(LogFile,"logfile").
+%-define(MaxNumFiles,10).
+%-define(MaxNumBytes,100000).
 
 -define(Iterations,100).
 -define(ControlAppFile,"control.app").
@@ -94,23 +94,23 @@ create_start_node(R)->
 				       {error, bad_directory}->
 					   {error,["bad_directory ",EbinPath,?MODULE,?LINE]};
 				       true ->
-					   case rpc:call(ProviderNode,application,start,[log],5000) of
+					  % case rpc:call(ProviderNode,application,start,[log],5000) of
+					  %     {error,Reason}->
+					  %	   {error,["Failed to start log ",Reason,?MODULE,?LINE]};
+					  %     ok->
+					  %	   LocalLogDir=atom_to_list(ProviderNode)++".logs",
+					  %	   case rpc:call(ProviderNode,log,create_logger,[?MainLogDir,LocalLogDir,?LogFile,?MaxNumFiles,?MaxNumBytes],5000) of
+					  %	       {error,Reason}->
+					  %		   {error,["Failed to start log ",Reason,?MODULE,?LINE]};
+					  %	       ok->
+					   case rpc:call(ProviderNode,application,start,[rd],5000) of
 					       {error,Reason}->
-					  	   {error,["Failed to start log ",Reason,?MODULE,?LINE]};
+						   {error,["Failed to start rd ",Reason,?MODULE,?LINE]};
 					       ok->
-					  	   LocalLogDir=atom_to_list(ProviderNode)++".logs",
-					  	   case rpc:call(ProviderNode,log,create_logger,[?MainLogDir,LocalLogDir,?LogFile,?MaxNumFiles,?MaxNumBytes],5000) of
-					  	       {error,Reason}->
-					  		   {error,["Failed to start log ",Reason,?MODULE,?LINE]};
-					  	       ok->
-							   case rpc:call(ProviderNode,application,start,[rd],5000) of
-							       {error,Reason}->
-								   {error,["Failed to start rd ",Reason,?MODULE,?LINE]};
-							       ok->
-								   erlang:monitor_node(ProviderNode,true),
-								   {ok, R#node_record{ allocated_id=os:system_time(nanosecond),status=free,status_time={date(),time()},node=ProviderNode}}
-							   end
-						   end
+						   erlang:monitor_node(ProviderNode,true),
+						   {ok, R#node_record{ allocated_id=os:system_time(nanosecond),status=free,status_time={date(),time()},node=ProviderNode}}
+						%	   end
+					        %           end
 					   end
 				   end
 			   end
