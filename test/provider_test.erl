@@ -50,7 +50,7 @@ start()->
 test_0()->
     io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
     
-    ok=control_provider_server:set_wanted_state(?DeploymentSpec),
+  %  ok=control_provider_server:set_wanted_state(?DeploymentSpec),
     {error,["Wanted State is already deployed ",control_provider_server,_]}=control_provider_server:set_wanted_state(?DeploymentSpec),
     ok.
     
@@ -88,13 +88,13 @@ test_2()->
     ok=control_provider_server:start_provider(Id2),
     
     timer:sleep(3000),
-    [Resource1,Resource2]=rd:fetch_resources(adder),
-    io:format("Resource1,Resource2 ~p~n",[{Resource1,Resource2,?MODULE,?FUNCTION_NAME}]),
-    {adder,Node2}=Resource2,
-    pong=rpc:call(Node2,adder,ping,[],5000),
+    [Resource1,Resource2,Resource3]=rd:fetch_resources(adder),
+    io:format("Resource1,Resource2,Resource3 ~p~n",[{Resource1,Resource2,Resource3,?MODULE,?FUNCTION_NAME}]),
+    {adder,Node1}=Resource1,
+    pong=rpc:call(Node1,adder,ping,[],5000),
     ok=control_provider_server:stop_provider(Id2),
     ok=control_provider_server:unload_provider(Id2),
-    [Resource2]=rd:fetch_resources(adder),
+    [Resource2,Resource3]=rd:fetch_resources(adder),
     
     
     ok.

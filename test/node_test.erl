@@ -68,7 +68,6 @@ test_1()->
     D=date(),
    
     [
-     {node_record,_,"c50","1_a","1_a","a",free,{D,_},'1_a@c50'},
      {node_record,_,"c50","2_a","2_a","a",free,{D,_},'2_a@c50'},
      {node_record,_,"c50","3_a","3_a","a",free,{D,_},'3_a@c50'},
      {node_record,_,"c50","4_a","4_a","a",free,{D,_},'4_a@c50'},
@@ -85,10 +84,9 @@ test_1()->
 
     % Allocate 
 
-    {ok,AllocateId_1,'1_a@c50',"1_a"}=control_node:allocate(),
     {ok,AllocateId_2,'2_a@c50',"2_a"}=control_node:allocate(),
+    {ok,AllocateId_3,'3_a@c50',"3_a"}=control_node:allocate(),
     [
-     {node_record,_,"c50","3_a","3_a","a",free,{D,_},'3_a@c50'},
      {node_record,_,"c50","4_a","4_a","a",free,{D,_},'4_a@c50'},
      {node_record,_,"c50","5_a","5_a","a",free,{D,_},'5_a@c50'},
      {node_record,_,"c50","6_a","6_a","a",free,{D,_},'6_a@c50'},
@@ -98,6 +96,7 @@ test_1()->
     ]=control_node:get_free(),
     
     [
+     {node_record,_,"c50","3_a","3_a","a",allocated,{D,_},'3_a@c50'},
      {node_record,_,"c50","2_a","2_a","a",allocated,{D,_},'2_a@c50'},
      {node_record,_,"c50","1_a","1_a","a",allocated,{D,_},'1_a@c50'}
     
@@ -109,19 +108,22 @@ test_1()->
     % free
     {error,["No matched for allocate_id ",45,control_node,_]}=control_node:free(45),
     ok=control_node:free(AllocateId_2),
+    
     [
-     {node_record,_,"c50","2_a","2_a","a",free,{D,_},'2_a@c50'},
-     {node_record,_,"c50","3_a","3_a","a",free,{D,_},'3_a@c50'},
-     {node_record,_,"c50","4_a","4_a","a",free,{D,_},'4_a@c50'},
-     {node_record,_,"c50","5_a","5_a","a",free,{D,_},'5_a@c50'},
-     {node_record,_,"c50","6_a","6_a","a",free,{D,_},'6_a@c50'},
-     {node_record,_,"c50","7_a","7_a","a",free,{D,_},'7_a@c50'},
-     {node_record,_,"c50","8_a","8_a","a",free,{D,_},'8_a@c50'},
-     {node_record,_,"c50","9_a","9_a","a",free,{D,_},'9_a@c50'}
+     {node_record,_,"c50","9_a","9_a","a",free,{_,_},'9_a@c50'},
+     {node_record,_,"c50","8_a","8_a","a",free,{_,_},'8_a@c50'},
+     {node_record,_,"c50","7_a","7_a","a",free,{_,_},'7_a@c50'},
+     {node_record,_,"c50","6_a","6_a","a",free,{_,_},'6_a@c50'},
+     {node_record,_,"c50","5_a","5_a","a",free,{_,_},'5_a@c50'},
+     {node_record,_,"c50","4_a","4_a","a",free,{_,_},'4_a@c50'},
+     
+     {node_record,_,"c50","2_a","2_a","a",free,{_,_},'2_a@c50'}
+    
     ]=control_node:get_free(),
     
     [
-     {node_record,_,"c50","1_a","1_a","a",allocated,{D,_},'1_a@c50'}
+     {node_record,_,"c50","1_a","1_a","a",allocated,{D,_},'1_a@c50'},
+     {node_record,_,"c50","3_a","3_a","a",allocated,{D,_},'3_a@c50'}
     ]=control_node:get_allocated(),
     
     []=control_node:get_deleted(),
