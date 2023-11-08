@@ -155,6 +155,8 @@ load(ProviderNode,IaasDir,Provider,App,GitPath)->
 		       _GitResult-> 
 			   Ebin=filename:join(ProviderDir,"ebin"),
 			   case rpc:call(ProviderNode,code,add_patha,[Ebin],5000) of 
+			       {error,bad_directory}->
+				   {error,[" Failed to add Ebin path in node , bad_directory ",Ebin,ProviderNode,?MODULE,?LINE]};
 			        {badrpc,Reason}->
 				   {error,["Failed to add path to Ebin dir ",Ebin,?MODULE,?LINE,Reason]};
 			       true->
