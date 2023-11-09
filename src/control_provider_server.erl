@@ -320,6 +320,7 @@ handle_info({nodedown,Node}, State) ->
     case lists:keyfind(Node,2,State#state.deployments) of
 	false->
 	    io:format("error ~p~n",[{"eexists Node ",Node,?MODULE,?LINE}]),
+	    NewState=State#state{monitored_nodes=lists:delete(Node,State#state.monitored_nodes)},
 	    {error,["eexists Node ",Node,?MODULE,?LINE]};
 	{Id,Node,NodeDir,Provider,App}->
 	    io:format("ok  ~p~n",[{?MODULE,?LINE}]),
@@ -337,7 +338,7 @@ handle_info({nodedown,Node}, State) ->
 					 monitored_nodes=NodesToMonitor}
 	    end
     end,
-    {noreply, State};
+    {noreply, NewState};
 
 handle_info(Info, State) ->
     io:format("unmatched_signal ~p~n",[{Info,?MODULE,?LINE}]),
