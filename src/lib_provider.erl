@@ -153,10 +153,20 @@ load(ProviderNode,IaasDir,Provider,App,GitPath)->
 		       {badrpc,Reason}->
 			   {error,["Failed to git clone ",?MODULE,?LINE,Reason]};
 		       _GitResult-> 
+			   %% Add dir paths for erlang vm 
+			   %% Ebin allways
 			   Ebin=filename:join(ProviderDir,"ebin"),
-			   case rpc:call(ProviderNode,code,add_patha,[Ebin],5000) of 
+			   %% Check if a priv dir is a available to add into 
+			   PrivDir=filename:join(ProviderDir,"priv"),
+			   AddPatha=case filelib:is_dir(PrivDir) of
+					false->
+					     [Ebin];
+					true->
+					     [Ebin,PrivDir]
+				    end,
+			   case rpc:call(ProviderNode,code,add_patha,AddPatha,5000) of 
 			       {error,bad_directory}->
-				   {error,[" Failed to add Ebin path in node , bad_directory ",Ebin,ProviderNode,?MODULE,?LINE]};
+				   {error,[" Failed to add Ebin path in node , bad_directory ",AddPatha,ProviderNode,?MODULE,?LINE]};
 			        {badrpc,Reason}->
 				   {error,["Failed to add path to Ebin dir ",Ebin,?MODULE,?LINE,Reason]};
 			       true->
