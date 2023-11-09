@@ -204,7 +204,7 @@ unload(Id,Node,ProviderDir,App)->
 %% @end
 %%--------------------------------------------------------------------
 start(ProviderNode,App)->
-    Result=case rpc:call(ProviderNode,application,start,[App],5000) of
+    Result=case rpc:call(ProviderNode,application,start,[App],5*5000) of
 	       {badrpc,Reason}->
 		   {error,["Failed to start Application on Node  ",App,ProviderNode,?MODULE,?LINE,Reason]};
 	       {error,Reason}->
