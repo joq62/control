@@ -332,7 +332,7 @@ handle_info({nodedown,Node}, State) ->
 					 monitored_nodes=lists:delete(Node,State#state.monitored_nodes)};
 		{ok,NewId,NewNode,NewNodeDir,Provider,App}->
 		    io:format("ok NewId,NewNode,NewNodeDir,Provider,App ~p~n",[{NewId,NewNode,NewNodeDir,Provider,App,?MODULE,?LINE}]),
-		    erlang:monitor_node(Node,true),
+		    erlang:monitor_node(NewNode,true),
 		    NodesToMonitor=lists:usort([Node|State#state.monitored_nodes]),		  
 		    NewState=State#state{deployments=[{NewId,NewNode,NewNodeDir,Provider,App}|L1],
 					 monitored_nodes=NodesToMonitor}
