@@ -307,8 +307,16 @@ handle_cast(UnMatchedSignal, State) ->
 	  {noreply, NewState :: term(), hibernate} |
 	  {stop, Reason :: normal | term(), NewState :: term()}.
 
+%% Monitored Node down
+%% Stop monitoring that node 
+%% Remove from  State#state.monitored_nodes
+%% Get the deployment on that node 
+%% Remove Deployment from deployment list
+%% 
+
 handle_info({nodedown,Node}, State) ->
     io:format("nodedown ~p~n",[{Node,?MODULE,?LINE}]),
+    erlang:monitor_node(Node,false),
     case lists:keyfind(Node,2,State#state.deployments) of
 	false->
 	    io:format("error ~p~n",[{"eexists Node ",Node,?MODULE,?LINE}]),
