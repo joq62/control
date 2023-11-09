@@ -164,7 +164,7 @@ load(ProviderNode,IaasDir,Provider,App,GitPath)->
 					true->
 					     [Ebin,PrivDir]
 				    end,
-			   case rpc:call(ProviderNode,code,add_patha,AddPatha,5000) of 
+			   case rpc:call(ProviderNode,code,add_patha,[AddPatha],5000) of 
 			       {error,bad_directory}->
 				   {error,[" Failed to add Ebin path in node , bad_directory ",AddPatha,ProviderNode,?MODULE,?LINE]};
 			        {badrpc,Reason}->
