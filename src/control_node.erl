@@ -249,8 +249,9 @@ init([]) ->
     
     
     DelDirR=[{R#node_record.node_dir,rpc:call(node(),file,del_dir_r,[R#node_record.node_dir],5000)}||R<-WantedState],
-    CreateStartNodesR=[lib_node:create_start_node(R)||R<-WantedState],
-      
+   % CreateStartNodesR=[lib_node:create_start_node(R)||R<-WantedState],
+    
+    CreateStartNodesR=lib_node:create_start_nodes(WantedState),
     NodeRecords=[R||{ok,R}<-CreateStartNodesR],
     
     IsWantedState=lib_node:is_wanted_state(WantedState),

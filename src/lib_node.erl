@@ -10,6 +10,7 @@
 
 
 -include("node_record.hrl").
+-include("log.api").
 
 -define(MainLogDir,"logs").
 -define(LocalLogDir,"to_be_changed.logs").
@@ -24,6 +25,7 @@
 	 create_wanted_state/3,
 	 is_wanted_state/1,
 
+	 create_start_nodes/1,
 	 create_start_node/1,
 	 stop_delete_node/1,
 	 
@@ -66,6 +68,21 @@ create_wanted_state(N,CookieStr,HostName,Acc) ->
 %% @spec
 %% @end
 %%--------------------------------------------------------------------
+create_start_nodes(WantedState)->
+    create_start_nodes(WantedState,[]).
+create_start_nodes([],Acc)->
+    Acc;
+create_start_nodes([R|T],Acc) ->
+    NewAcc=case create_start_node(R) of
+	       {error,Reason}->
+		   ?LOG_WARNING("Error when creating a node R  ",[R,Reason]), 
+		   Acc;
+	       {ok,NewR} ->
+		   ?LOG_NOTICE("Succeded to create a node R  ",[NewR]), 
+		   [{ok,NewR}|Acc]
+	   end,
+    create_start_nodes(T,NewAcc).
+
 create_start_node(R)->
     HostName=R#node_record.hostname,
     NodeName=R#node_record.nodename,
