@@ -2,4 +2,4 @@
 -define(LocalResourceTuples,[{control,{control,node()}}]).
 
 %% I want following resource types
--define(TargetTypes,[etcd,log]). 
+-define(TargetTypes,[etcd]). 

@@ -245,26 +245,13 @@ ping()->
 	  ignore.
 init([]) ->
 
-    %% Connect nodes
-    ThisNode=node(),
-    {ok,ConnecNodes}=etcd_infra:get_connect_nodes(?InfraSpecId),
-    ConnectR=[{net_adm:ping(N),N}||N<-ConnecNodes],
-	
- %% Announce to resource_discovery
-    Interval=10*1000,
-    Iterations=10,
-    true=check_rd_running(Interval,Iterations,false),
-    [rd:add_local_resource(ResourceType,Resource)||{ResourceType,Resource}<-?LocalResourceTuples],
-    [rd:add_target_resource_type(TargetType)||TargetType<-?TargetTypes],
-    rd:trade_resources(),
-      
-    ok=control_provider_server:set_wanted_state(?PermanentDeploymentSpec),
-    
-    
+     
     ?LOG_NOTICE("Server started ",[]),
     
+    TimeOut=0,
  
-    {ok, #state{deployments=[]}}.
+    {ok, #state{deployments=[]},
+     TimeOut}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -389,7 +376,30 @@ handle_cast(_Request, State) ->
 	  {noreply, NewState :: term(), Timeout :: timeout()} |
 	  {noreply, NewState :: term(), hibernate} |
 	  {stop, Reason :: normal | term(), NewState :: term()}.
-handle_info(_Info, State) ->
+
+handle_info(timeout, State) ->
+    
+    %% Connect nodes
+    
+    ThisNode=node(),
+    {ok,ConnecNodes}=etcd_infra:get_connect_nodes(?InfraSpecId),
+    ConnectR=[{net_adm:ping(N),N}||N<-ConnecNodes],
+	
+ %% Announce to resource_discovery
+    Interval=10*1000,
+    Iterations=10,
+    true=check_rd_running(Interval,Iterations,false),
+    [rd:add_local_resource(ResourceType,Resource)||{ResourceType,Resource}<-?LocalResourceTuples],
+    [rd:add_target_resource_type(TargetType)||TargetType<-?TargetTypes],
+    rd:trade_resources(),
+    
+    ok=rd:detect_target_resources(?TargetTypes,?MaxDetectTime),
+    ok=control_provider_server:set_wanted_state(?PermanentDeploymentSpec),
+        
+    {noreply, State};
+
+handle_info(Info, State) ->
+    glurk=Info,
     {noreply, State}.
 
 %%--------------------------------------------------------------------
