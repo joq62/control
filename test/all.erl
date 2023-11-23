@@ -24,12 +24,13 @@
 %% Returns: List({HostId,Ip,SshPort,Uid,Pwd}
 %% --------------------------------------------------------------------
 start()->
-   
-    ok=dependent_apps:start(),
+    io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME,?LINE}]),
+    
     ok=setup(),
     
-     ok=node_ctrl_test:start(),
-
+    ok=appl_ctrl_test:start(),
+    io:format("nodes() ~p~n",[{nodes(), ?MODULE,?FUNCTION_NAME,?LINE}]),
+    
 %    ok=node_test:start(),
 %    ok=provider_test:start(),
 %    ok=control_test:start(),
@@ -46,7 +47,7 @@ start()->
 %% --------------------------------------------------------------------
 setup()->
     io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
-  
+    ok=dependent_apps:start(),
     ok=application:start(control),
     pong=control:ping(),
     ok.

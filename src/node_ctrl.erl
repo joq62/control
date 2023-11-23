@@ -23,7 +23,8 @@
 -export([
 	 create_workers/0,
 	 create_worker/2,
-	 delete_worker/1
+	 delete_worker/1,
+	 allocate/0
 	]).
 
 %% admin
@@ -60,12 +61,25 @@
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Creates all the worers that are specified in the file InfraSpec.
-%% worker is a running vm and a dir 
+%% Allocate the node with least num of running applications
+%% 
 %% 
 %% @end
 %%--------------------------------------------------------------------
--spec  create_workers() -> {ok,ListOFWorkers :: term()} | 
+-spec  allocate() -> { WorkerNode :: node(),WorkerDir :: string()} | 
+	  {error, Error :: term()}.
+allocate() ->
+    gen_server:call(?SERVER,{allocate},infinity).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Create a worker with a node name = NodeName and node dir=NodeDir. It's implict tha
+%% the worker starts at current host and has the same cookie.
+%% If the worker exists it will be killed and the dir will be deleted
+%%  
+%% @end
+%%--------------------------------------------------------------------
+-spec  create_workers() -> {ok,ListOfWorkers :: term()} | 
 	  {error, Error :: term()}.
 create_workers() ->
     gen_server:call(?SERVER,{create_workers},infinity).
@@ -213,14 +227,25 @@ handle_call({delete_worker,NodeName}, _From, State) ->
 		  NewState=State,
 		  {error,["Nodename doesnt exists in worker_list",NodeName,State#state.worker_list]};
 	      {NodeName,NodeDir,Node,HostName,CookieStr}->
-		  
 		  lib_node_ctrl:delete_worker(NodeDir,Node),
-		  
 		  NewWorkerList=lists:delete({NodeName,NodeDir,Node,HostName,CookieStr},State#state.worker_list),
 		  NewState=State#state{worker_list=NewWorkerList},
 		  ok
 	  end,
     io:format("State ~p~n",[{State,?MODULE,?LINE}]),
+    
+    {reply, Reply, NewState};
+
+
+handle_call({allocate}, _From, State) ->
+    Reply=case lib_node_ctrl:allocate(State#state.worker_list) of
+	      {error,Reason}->
+		  NewState=State,
+		  {error,Reason};
+	      {ok,WorkerNode,WorkerDir,NewWorkerList}->
+		  NewState=State#state{worker_list=NewWorkerList},
+		  {ok,WorkerNode,WorkerDir}
+	  end,
     
     {reply, Reply, NewState};
 
@@ -262,22 +287,22 @@ handle_cast(UnMatchedSignal, State) ->
 
 handle_info({nodedown,Node}, State) ->
     io:format("nodedown,Node  ~p~n",[{Node,?MODULE,?LINE}]),
-    Result=case lists:keyfind(Node,3,State#state.worker_list) of
-	       false->
-		   NewState=State,
-		   {error,["Node doesnt exist i worker_list ",Node,?MODULE,?LINE]};
-	       {NodeName,NodeDir,Node,HostName,CookieStr}->
-		   case lib_node_ctrl:create_worker(NodeName,NodeDir,Node,HostName,CookieStr) of
-		       {error,Reason}->
-			   NewState=State,
-			   {error,Reason};
-		       {ok,NodeName,NodeDir,Node,HostName,CookieStr}->
-			   io:format("Restarted node  ~p~n",[{Node,?MODULE,?LINE}]),
-			   NewWorkerList=lists:usort([{NodeName,NodeDir,Node,HostName,CookieStr}|State#state.worker_list]),
-			   NewState=State#state{worker_list=NewWorkerList}
-			       
-		   end
-	   end,
+    case lists:keyfind(Node,3,State#state.worker_list) of
+	false->
+	    NewState=State,
+	    {error,["Node doesnt exist i worker_list ",Node,?MODULE,?LINE]};
+	{NodeName,NodeDir,Node,HostName,CookieStr}->
+	    case lib_node_ctrl:create_worker(NodeName,NodeDir,Node,HostName,CookieStr) of
+		{error,Reason}->
+		    NewState=State,
+		    {error,Reason};
+		{ok,NodeName,NodeDir,Node,HostName,CookieStr}->
+		    io:format("Restarted node  ~p~n",[{Node,?MODULE,?LINE}]),
+		    NewWorkerList=lists:usort([{NodeName,NodeDir,Node,HostName,CookieStr}|State#state.worker_list]),
+		    NewState=State#state{worker_list=NewWorkerList}
+			
+	    end
+    end,
     {noreply, NewState};
 
 

@@ -32,6 +32,8 @@ init([]) ->
     ChildSpecs = [
 		  #{id => node_ctrl,               
 		    start => {node_ctrl,start_link,[]}},
+		  #{id => appl_ctrl,               
+		    start => {appl_ctrl,start_link,[]}},
 		  #{id => control_provider_server,               
 		    start => {control,start_link,[]}}
 		 ],

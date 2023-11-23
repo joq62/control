@@ -20,10 +20,12 @@
 <h2><a name="description">Description</a></h2>
    Data: Nodename,cookie, node, status(allocated,free,stopped)
 <h2><a name="index">Function Index</a></h2>
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#create_worker-2">create_worker/2</a></td><td>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#allocate-0">allocate/0</a></td><td>  
+Allocate the node with least num of running applications.</td></tr>
+<tr><td valign="top"><a href="#create_worker-2">create_worker/2</a></td><td>
   Create a worker with a node name = NodeName and node dir=NodeDir.</td></tr>
-<tr><td valign="top"><a href="#create_workers-1">create_workers/1</a></td><td>
-  Creates all the worers that are specified in the file InfraSpec.</td></tr>
+<tr><td valign="top"><a href="#create_workers-0">create_workers/0</a></td><td>
+  Create a worker with a node name = NodeName and node dir=NodeDir.</td></tr>
 <tr><td valign="top"><a href="#delete_worker-1">delete_worker/1</a></td><td>
   Worker vm is stopped and worker dir is deleted.</td></tr>
 <tr><td valign="top"><a href="#kill-0">kill/0</a></td><td>.</td></tr>
@@ -35,6 +37,15 @@
 
 <h2><a name="functions">Function Details</a></h2>
 
+<h3 class="function"><a name="allocate-0">allocate/0</a></h3>
+<div class="spec">
+<p><tt>allocate() -&gt; {WorkerNode::node(), WorkerDir::string()} | {error, Error::term()}</tt><br></p>
+<p> </p>
+</div><p><p>  
+Allocate the node with least num of running applications</p>
+ 
+ </p>
+
 <h3 class="function"><a name="create_worker-2">create_worker/2</a></h3>
 <div class="spec">
 <p><tt>create_worker(NodeName::string(), NodeDir::string()) -&gt; {ok, Node::node()} | {error, Error::term()}</tt><br></p>
@@ -45,13 +56,14 @@
   If the worker exists it will be killed and the dir will be deleted
  </p>
 
-<h3 class="function"><a name="create_workers-1">create_workers/1</a></h3>
+<h3 class="function"><a name="create_workers-0">create_workers/0</a></h3>
 <div class="spec">
-<p><tt>create_workers(InfraSpec::string()) -&gt; {ok, ListOFWorkers::term()} | {error, Error::term()}</tt><br></p>
+<p><tt>create_workers() -&gt; {ok, ListOfWorkers::term()} | {error, Error::term()}</tt><br></p>
 <p> </p>
 </div><p>
-  Creates all the worers that are specified in the file InfraSpec.
-  worker is a running vm and a dir
+  Create a worker with a node name = NodeName and node dir=NodeDir. It's implict tha
+  the worker starts at current host and has the same cookie.
+  If the worker exists it will be killed and the dir will be deleted
  </p>
 
 <h3 class="function"><a name="delete_worker-1">delete_worker/1</a></h3>

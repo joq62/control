@@ -10,6 +10,8 @@
 -define(Iterations,100).
 %% API
 -export([
+	 allocate/1,
+
 	 create_worker/5,
 	 delete_worker/2,
 	 create_workers/1,
@@ -23,6 +25,11 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+allocate([])->
+    {error,["No WorkerNodes available",?MODULE,?LINE]};
+allocate([{NodeName,WorkerDir,WorkerNode,HostName,CookieStr}|T])->
+    {ok,WorkerNode,WorkerDir,T++{NodeName,WorkerDir,WorkerNode,HostName,CookieStr}}.
+    
 
 %%--------------------------------------------------------------------
 %% @doc

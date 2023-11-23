@@ -456,8 +456,7 @@ handle_info(timeout, State) ->
     %%--------------------  State Connected -------------------
     
     %% 3. create workes for the host
-    
-  %  {ok,ListOfWorkerNodes}=node_ctrl:create_workers(?InfraSpec),
+    CreateWorkersResult=node_ctrl:create_workers(),
     
     
     %% Ensure connected
