@@ -28,13 +28,15 @@ start()->
     ok=dependent_apps:start(),
     ok=setup(),
     
-    ok=node_test:start(),
-    ok=provider_test:start(),
-    ok=control_test:start(),
+     ok=node_ctrl_test:start(),
+
+%    ok=node_test:start(),
+%    ok=provider_test:start(),
+%    ok=control_test:start(),
  
     io:format("Test OK !!! ~p~n",[?MODULE]),
-    timer:sleep(3000),
-    init:stop(),
+ %   timer:sleep(3000),
+ %   init:stop(),
     ok.
 
 %% --------------------------------------------------------------------

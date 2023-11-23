@@ -22,8 +22,7 @@
 <table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#get_deployments-0">get_deployments/0</a></td><td>
   get_deployments returns list of deployed providers.</td></tr>
 <tr><td valign="top"><a href="#load_start-1">load_start/1</a></td><td>
-  This function is an user interface to be complementary to automated
-  load and start a provider at this host.</td></tr>
+  Loads and starts a provider on a free worker node.</td></tr>
 <tr><td valign="top"><a href="#ping-0">ping/0</a></td><td>.</td></tr>
 <tr><td valign="top"><a href="#reload-2">reload/2</a></td><td>
   reload(DeploymentId) will stop_unload and load and start the provider.</td></tr>
@@ -49,9 +48,9 @@
 <p><tt>load_start(ProviderSpec::string()) -&gt; {ok, DeploymentId::integer()} | {error, Error::term()}</tt><br></p>
 <p> </p>
 </div><p>
-  This function is an user interface to be complementary to automated
-  load and start a provider at this host.
-  In v1.0.0 the deployment will not be persistant</p>
+  Loads and starts a provider on a free worker node.
+  1) It allocates a free worker
+  2) Loads the</p>
 
 <h3 class="function"><a name="ping-0">ping/0</a></h3>
 <div class="spec">
