@@ -65,7 +65,7 @@
 %%%===================================================================
 %%--------------------------------------------------------------------
 %% @doc
-%% @spec
+%% 
 %% @end
 %%--------------------------------------------------------------------
 kill()->
@@ -188,15 +188,16 @@ is_alive(ProviderNode)->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% @spec
+%% 
 %% @end
 %%--------------------------------------------------------------------
+-spec ping() -> pong | Error::term().
 ping()-> 
     gen_server:call(?SERVER, {ping},infinity).
 
 %%--------------------------------------------------------------------
 %% @doc
-%% @spec
+%% 
 %% @end
 %%--------------------------------------------------------------------
 dbg_get_state()-> 
@@ -268,12 +269,23 @@ init([]) ->
 	    node_records=NodeRecords
 	   }}.
 
-
 %%--------------------------------------------------------------------
+%% @private
 %% @doc
-%% @spec
+%% Handling call messages
 %% @end
 %%--------------------------------------------------------------------
+-spec handle_call(Request :: term(), From :: {pid(), term()}, State :: term()) ->
+	  {reply, Reply :: term(), NewState :: term()} |
+	  {reply, Reply :: term(), NewState :: term(), Timeout :: timeout()} |
+	  {reply, Reply :: term(), NewState :: term(), hibernate} |
+	  {noreply, NewState :: term()} |
+	  {noreply, NewState :: term(), Timeout :: timeout()} |
+	  {noreply, NewState :: term(), hibernate} |
+	  {stop, Reason :: term(), Reply :: term(), NewState :: term()} |
+	  {stop, Reason :: term(), NewState :: term()}.
+
+
 
 handle_call({kill}, _From, State) ->
     Reply=1/0,

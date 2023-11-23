@@ -125,9 +125,10 @@ is_alive(DeploymentRecord)->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% @spec
+%% 
 %% @end
 %%--------------------------------------------------------------------
+-spec ping() -> pong | Error::term().
 ping()-> 
     gen_server:call(?SERVER, {ping},infinity).
 %%--------------------------------------------------------------------
@@ -169,10 +170,21 @@ init([]) ->
 
 
 %%--------------------------------------------------------------------
+%% @private
 %% @doc
-%% @spec
+%% Handling call messages
 %% @end
 %%--------------------------------------------------------------------
+-spec handle_call(Request :: term(), From :: {pid(), term()}, State :: term()) ->
+	  {reply, Reply :: term(), NewState :: term()} |
+	  {reply, Reply :: term(), NewState :: term(), Timeout :: timeout()} |
+	  {reply, Reply :: term(), NewState :: term(), hibernate} |
+	  {noreply, NewState :: term()} |
+	  {noreply, NewState :: term(), Timeout :: timeout()} |
+	  {noreply, NewState :: term(), hibernate} |
+	  {stop, Reason :: term(), Reply :: term(), NewState :: term()} |
+	  {stop, Reason :: term(), NewState :: term()}.
+
 handle_call({set_wanted_state,_DeploymentSpec}, _From, State) when State#state.is_deployed=:=true ->
     io:format("set_wanted_state true ~p~n",[{?MODULE,?LINE}]),
     Reply={error,["Wanted State is already deployed ",?MODULE,?LINE]},

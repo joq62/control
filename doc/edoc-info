@@ -1,0 +1,4 @@
+%% encoding: UTF-8
+{application,control}.
+{modules,[control,control_app,control_node,control_provider_server,
+          control_sup,lib_control,lib_node,lib_provider,provider]}.
