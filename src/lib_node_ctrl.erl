@@ -7,13 +7,16 @@
 %%% Created : 31 Jul 2023 by c50 <joq62@c50>
 %%%-------------------------------------------------------------------
 -module(lib_node_ctrl). 
+
+-include("node.hrl").
+
 -define(Iterations,100).
 %% API
 -export([
 	 allocate/1,
 
-	 create_worker/5,
-	 delete_worker/2,
+	 create_worker/1,
+	 delete_worker/1,
 	 create_workers/1,
 	 create_node_info/3,
 	 
@@ -25,10 +28,21 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+%--------------------------------------------------------------------
+%% @doc
+%% 
+%% @end
+%%--------------------------------------------------------------------
 allocate([])->
     {error,["No WorkerNodes available",?MODULE,?LINE]};
 allocate([{NodeName,WorkerDir,WorkerNode,HostName,CookieStr}|T])->
-    {ok,WorkerNode,WorkerDir,T++{NodeName,WorkerDir,WorkerNode,HostName,CookieStr}}.
+    {ok,#node_info{worker_node=WorkerNode,
+	      worker_dir=WorkerDir,
+	      nodename=NodeName,
+	      hostname=HostName,
+	      cookie_str=CookieStr},
+     T++{NodeName,WorkerDir,WorkerNode,HostName,CookieStr}}.
     
 
 %%--------------------------------------------------------------------
@@ -37,7 +51,7 @@ allocate([{NodeName,WorkerDir,WorkerNode,HostName,CookieStr}|T])->
 %% @end
 %%--------------------------------------------------------------------
 create_workers(ListOfNodeInfo)->
-    CreateResult=[create_worker(NodeName,NodeDir,Node,HostName_1,CookieStr_1)||{NodeName,NodeDir,Node,HostName_1,CookieStr_1}<-ListOfNodeInfo],
+    CreateResult=[create_worker(NodeInfoRecord)||NodeInfoRecord<-ListOfNodeInfo],
     CreateResult.
 
 %%--------------------------------------------------------------------
@@ -45,22 +59,21 @@ create_workers(ListOfNodeInfo)->
 %% create worker directory and starts one  worker on the host 
 %% @end
 %%--------------------------------------------------------------------
-create_worker(NodeName,NodeDir,Node,HostName,CookieStr)->
-    delete_worker(NodeDir,Node),
-
-    Result=case file:make_dir(NodeDir) of
+create_worker(NodeInfoRecord)->
+    delete_worker(NodeInfoRecord),
+    Result=case file:make_dir(NodeInfoRecord#node_info.worker_dir) of
 	       {error,Reson}->
-		   {error,["Failed to create a dir for ",NodeDir,Reson,?MODULE,?LINE]};
+		   {error,["Failed to create a dir for ",NodeInfoRecord#node_info.worker_dir,Reson,?MODULE,?LINE]};
 	       ok ->
-		   ErlArgs=" -setcookie "++CookieStr,
-		   case slave:start(HostName,NodeName,ErlArgs) of
-		       {error,{already_running, Node}}->
-			   {error,["Already running ",Node,NodeName,CookieStr,ErlArgs,?MODULE,?LINE]};
+		   ErlArgs=" -setcookie "++NodeInfoRecord#node_info.cookie_str,
+		   case slave:start(NodeInfoRecord#node_info.hostname,NodeInfoRecord#node_info.nodename,ErlArgs) of
+		       {error,{already_running,WorkerNode}}->
+			   {error,["Already running ",NodeInfoRecord,ErlArgs,?MODULE,?LINE]};
 		       {error,Reason}->
-			   {error,["Failed to start Node ",Reason,Node,NodeName,CookieStr,ErlArgs,?MODULE,?LINE]};
-		       {ok,Node}->
-			   erlang:monitor_node(Node,true),
-			   {ok,NodeName,NodeDir,Node,HostName,CookieStr}
+			   {error,["Failed to start Node ",Reason,NodeInfoRecord,ErlArgs,?MODULE,?LINE]};
+		       {ok,WorkerNode}->
+			   erlang:monitor_node(WorkerNode,true),
+			   {ok,NodeInfoRecord}
 		   end
 	   end,
     Result.
@@ -71,10 +84,12 @@ create_worker(NodeName,NodeDir,Node,HostName,CookieStr)->
 %% create worker directory and starts one  worker on the host 
 %% @end
 %%--------------------------------------------------------------------
-delete_worker(NodeDir,Node)->
-    erlang:monitor_node(Node,false),
-    file:del_dir_r(NodeDir),
-    slave:stop(Node),
+delete_worker(NodeInfoRecord)->
+    WorkerNode=NodeInfoRecord#node_info.worker_node,
+    WorkerDir=NodeInfoRecord#node_info.worker_dir,
+    erlang:monitor_node(WorkerNode,false),
+    file:del_dir_r(WorkerDir),
+    slave:stop(WorkerNode),
     ok.
 
 %%--------------------------------------------------------------------
@@ -85,14 +100,17 @@ delete_worker(NodeDir,Node)->
 create_node_info(NumWorkers,HostName,CookieStr)->
     create_node_info(NumWorkers,HostName,CookieStr,[]).
 
-create_node_info(0,_HostName,_CookieStr,NodeInfo)->
-    NodeInfo;
+create_node_info(0,_HostName,_CookieStr,NodeInfoRecord)->
+    NodeInfoRecord;
 create_node_info(N,HostName,CookieStr,Acc) ->
     NStr=integer_to_list(N),						
     NodeName=NStr++"_"++CookieStr,
-    NodeDir=NStr++"_"++CookieStr,
-    Node=list_to_atom(NodeName++"@"++HostName),
-    create_node_info(N-1,HostName,CookieStr,[{NodeName,NodeDir,Node,HostName,CookieStr}|Acc]).
+    WorkerDir=NStr++"_"++CookieStr,
+    WorkerNode=list_to_atom(NodeName++"@"++HostName),
+    NodeInfoRecord=#node_info{worker_node=WorkerNode,worker_dir=WorkerDir,nodename=NodeName,
+			      hostname=HostName,
+			      cookie_str=CookieStr},
+    create_node_info(N-1,HostName,CookieStr,[NodeInfoRecord|Acc]).
 
 
 					 

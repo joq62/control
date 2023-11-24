@@ -15,12 +15,13 @@
 %%--------------------------------------------------------------------
 
 -include("log.api").
- 
+-include("appl.hrl").
+-include("node.hrl").
 
 %% API
 
 -export([
-	 load_appl/1,
+	 load_appl/2,
 	 start_appl/1,
 	 stop_appl/1,
 	 unload_appl/1,
@@ -41,10 +42,10 @@
 -define(SERVER, ?MODULE).
 
 % Data
-% deployed_appl {DeploymentId,App,AppDir, WorkerNode}
+% deploy_appl {AppleInfoRecord,NodeInfoRecord}
 -record(state, {
 		monitored_nodes,
-		deployed_appl
+		deployments
 		
 	       }).
 
@@ -57,35 +58,39 @@
 %% load application   
 %% @end
 %%--------------------------------------------------------------------
--spec load_appl(ApplSpec :: string()) -> ok | {error, Error :: term()}.
-load_appl(ApplSpec)->
-    gen_server:call(?SERVER, {load_appl,ApplSpec},infinity).
+-spec load_appl(NodeInfoRecord :: term(),ApplSpec :: string()) -> {ok,DeployInfoRecord :: term()} | 
+	  {error, Error :: term()}.
+load_appl(NodeInfoRecord,ApplSpec)->
+    gen_server:call(?SERVER, {load_appl,NodeInfoRecord,ApplSpec},infinity).
 %%--------------------------------------------------------------------
 %% @doc
 %%  application   
 %% @end
 %%--------------------------------------------------------------------
--spec start_appl(DeploymentId :: integer()) -> ok | {error, Error :: term()}.
-start_appl(DeploymentId)->
-    gen_server:call(?SERVER, {start_appl,DeploymentId},infinity).
+-spec start_appl(DeployInfoRecord :: term()) -> ok | 
+	  {error, Error :: term()}.
+start_appl(DeployInfoRecord)->
+    gen_server:call(?SERVER, {start_appl,DeployInfoRecord},infinity).
 
 %%--------------------------------------------------------------------
 %% @doc
 %%  application   
 %% @end
 %%--------------------------------------------------------------------
--spec stop_appl(DeploymentId :: integer()) -> ok | {error, Error :: term()}.
-stop_appl(DeploymentId)->
-    gen_server:call(?SERVER, {stop_appl,DeploymentId},infinity).
+-spec stop_appl(DeployInfoRecord :: term()) -> ok | 
+	  {error, Error :: term()}.
+stop_appl(DeployInfoRecord)->
+    gen_server:call(?SERVER, {stop_appl,DeployInfoRecord},infinity).
 
 %%--------------------------------------------------------------------
 %% @doc
 %%  application   
 %% @end
 %%--------------------------------------------------------------------
--spec unload_appl(DeploymentId :: term()) -> ok | {error, Error :: term()}.
-unload_appl(DeploymentId)->
-    gen_server:call(?SERVER, {unload_appl,DeploymentId},infinity).
+-spec unload_appl(DeployInfoRecord :: term()) -> ok | 
+	  {error, Error :: term()}.
+unload_appl(DeployInfoRecord)->
+    gen_server:call(?SERVER, {unload_appl,DeployInfoRecord},infinity).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -163,7 +168,7 @@ init([]) ->
     ?LOG_NOTICE("Server started ",[]),
     {ok, #state{
 	    monitored_nodes=[],
-	    deployed_appl=[]
+	    deployments=[]
 	   }}.
 
 
@@ -184,57 +189,58 @@ init([]) ->
 	  {stop, Reason :: term(), NewState :: term()}.
 
 
-handle_call({load_appl,ApplSpec}, _From, State) ->
-    Reply=case lib_appl_ctrl:load_appl(ApplSpec) of
+handle_call({load_appl,NodeInfoRecord,ApplSpec}, _From, State) ->
+    Reply=case lib_appl_ctrl:load_appl(NodeInfoRecord,ApplSpec) of
 	      {error,Reason}->
 		  NewState=State,
 		  {error,Reason};
-	      {ok,DeploymentId,WorkerNode,WorkerDir,ApplicationDir,ApplSpec,App}->
-		  NewState=State#state{deployed_appl=[{DeploymentId,WorkerNode,WorkerDir,ApplicationDir,ApplSpec,App}|State#state.deployed_appl]},
-		  {ok,DeploymentId}
+	      {ok,ApplInfoRecord}->
+		  Deployment=#deployment{node_info=NodeInfoRecord,appl_info=ApplInfoRecord},
+		  NewState=State#state{deployments=[Deployment|State#state.deployments]},
+		  {ok,Deployment}
 	  end,
     {reply, Reply, NewState};
 
-handle_call({start_appl,DeploymentId}, _From, State) ->
-    Reply=case lists:keyfind(DeploymentId,1,State#state.deployed_appl) of
+handle_call({start_appl,Deployment}, _From, State) ->
+    Reply=case lists:member(Deployment,State#state.deployments) of
 	      false->
-		  {error,["DeployedId doesnt exists",DeploymentId,?MODULE,?LINE]};
-	      {_DeploymentId,WorkerNode,_WorkerDir,ApplicationDir,_ApplSpec,App}->
-		  case lib_appl_ctrl:start_appl(WorkerNode,App) of
-		      {error,Reason}->
-			  {error,Reason};
-		      ok->
-			  {ok,WorkerNode}
-		  end
-	  end,
-    {reply, Reply, State};
-
-handle_call({stop_appl,DeploymentId}, _From, State) ->
-    Reply=case lists:keyfind(DeploymentId,1,State#state.deployed_appl) of
-	      false->
-		  {error,["DeployedId doesnt exists",DeploymentId,?MODULE,?LINE]};
-	      {_DeploymentId,WorkerNode,_WorkerDir,ApplicationDir,_ApplSpec,App}->
-		  case lib_appl_ctrl:stop_appl(App,ApplicationDir, WorkerNode) of
+		  {error,["Deployment doesnt exists",Deployment,?MODULE,?LINE]};
+	      true->
+		  case lib_appl_ctrl:start_appl(Deployment) of
 		      {error,Reason}->
 			  {error,Reason};
 		      ok->
 			  ok
 		  end
 	  end,
-    {reply, Reply,State};
+    {reply, Reply, State};
 
-handle_call({unload_appl,DeploymentId}, _From, State) ->
-    Reply=case lists:keyfind(DeploymentId,1,State#state.deployed_appl) of
+handle_call({stop_appl,Deployment}, _From, State) ->
+    Reply=case lists:member(Deployment,State#state.deployments) of
+	      false->
+		  {error,["Deployment doesnt exists",Deployment,?MODULE,?LINE]};
+	      true->
+		  case lib_appl_ctrl:stop_appl(Deployment) of
+		      {error,Reason}->
+			  {error,Reason};
+		      ok->
+			  ok
+		  end
+	  end,
+    {reply, Reply, State};
+
+handle_call({unload_appl,Deployment}, _From, State) ->
+    Reply=case lists:member(Deployment,State#state.deployments) of
 	      false->
 		  NewState=State,
-		  {error,["DeployedId doesnt exists",DeploymentId,?MODULE,?LINE]};
-	      {DeploymentId,WorkerNode,WorkerDir,ApplicationDir,ApplSpec,App}->
-		  case lib_appl_ctrl:unload_appl(ApplicationDir) of
+		  {error,["Deployment doesnt exists",Deployment,?MODULE,?LINE]};
+	      true->
+		  case lib_appl_ctrl:unload_appl(Deployment) of
 		      {error,Reason}->
 			  NewState=State,
 			  {error,Reason};
 		      ok->
-			  NewState=State#state{deployed_appl=lists:delete({DeploymentId,WorkerNode,WorkerDir,ApplicationDir,ApplSpec,App},State#state.deployed_appl)},
+			  NewState=State#state{deployments=lists:delete(Deployment,State#state.deployments)},
 			  ok
 		  end
 	  end,
@@ -242,7 +248,7 @@ handle_call({unload_appl,DeploymentId}, _From, State) ->
 
 
 handle_call({loaded_appls}, _From, State) ->
-    Reply=[{App,WorkerNode}||{DeploymentId,WorkerNode,WorkerDir,ApplicationDir,ApplSpec,App}<-State#state.deployed_appl],
+    Reply=[Deployment#deployment.appl_info||Deployment<-State#state.deployments],
     {reply, Reply, State};
 
 handle_call({running_appls}, _From, State) ->
@@ -301,33 +307,37 @@ handle_cast(UnMatchedSignal, State) ->
 handle_info({nodedown,WorkerNode}, State) ->
     io:format("nodedown ~p~n",[{WorkerNode,?MODULE,?LINE}]),
     erlang:monitor_node(WorkerNode,false),
-    case lists:keyfind(WorkerNode,2,State#state.deployed_appl) of
+    
+    case deployment_info:keyfind(worker_node,WorkerNode,State#state.deployments) of
 	false->
 	    io:format("error ~p~n",[{"eexists WorkerNode ",WorkerNode,?MODULE,?LINE}]),
 	    NewState=State#state{monitored_nodes=lists:delete(WorkerNode,State#state.monitored_nodes)},
 	    {error,["eexists WorkerNode ",WorkerNode,?MODULE,?LINE]};
-	{DeploymentId,WorkerNode,WorkerDir,ApplicationDir,ApplSpec,App}->
-	    io:format("ok  ~p~n",[{?MODULE,?LINE}]),
-	    L1=lists:delete({DeploymentId,WorkerNode,WorkerDir,ApplicationDir,ApplSpec,App},State#state.deployed_appl),
-	    case lib_appl_ctrl:load_appl(ApplSpec) of
-		{error,Reason}->
-		    io:format("error  ~p~n",[{Reason,?MODULE,?LINE}]),
-		    NewState=State#state{deployed_appl=L1,
-					 monitored_nodes=lists:delete(WorkerNode,State#state.monitored_nodes)};
-		{ok,NewDeploymentId,NewWorkerNode,NewWorkerDir,ApplicationDir,ApplSpec,App}->
-		    case lib_appl_ctrl:start_appl(WorkerNode,App) of
-			{error,Reason}->
-			    io:format("error  ~p~n",[{Reason,?MODULE,?LINE}]),
-			    NewState=State#state{deployed_appl=L1,
-						 monitored_nodes=lists:delete(WorkerNode,State#state.monitored_nodes)};
-			ok->
-			    io:format("NewDeploymentId,NewWorkerNode,NewWorkerDir,ApplicationDir,ApplSpec,App ~p~n",[{NewDeploymentId,NewWorkerNode,NewWorkerDir,ApplicationDir,ApplSpec,App,?MODULE,?LINE}]),
-			    erlang:monitor_node(NewWorkerNode,true),
-			    NodesToMonitor=lists:usort([NewWorkerNode|State#state.monitored_nodes]),		  
-			    NewState=State#state{deployed_appl=[{NewDeploymentId,NewWorkerNode,NewWorkerDir,ApplicationDir,ApplSpec,App}|L1],
-						 monitored_nodes=NodesToMonitor}
-		    end
-	    end
+	DeploymentsWorkerNode->
+	    io:format("DeploymentsWorkerNode  ~p~n",[{DeploymentsWorkerNode,?MODULE,?LINE}]),
+	    NewState=State
+	  
+
+	    %L1=lists:delete({WorkerNode,WorkerDir,ApplicationDir,ApplSpec,App},State#state.deployed_appl),
+	    %case lib_appl_ctrl:load_appl(ApplSpec) of
+	%	{error,Reason}->
+	%	    io:format("error  ~p~n",[{Reason,?MODULE,?LINE}]),
+	%	    NewState=State#state{deployed_appl=L1,
+	%				 monitored_nodes=lists:delete(WorkerNode,State#state.monitored_nodes)};
+	%	{ok,NewWorkerNode,NewWorkerDir,ApplicationDir,ApplSpec,App}->
+	%	    case lib_appl_ctrl:start_appl(WorkerNode,App) of
+	%		{error,Reason}->
+	%		    io:format("error  ~p~n",[{Reason,?MODULE,?LINE}]),
+	%		    NewState=State#state{deployed_appl=L1,
+	%					 monitored_nodes=lists:delete(WorkerNode,State#state.monitored_nodes)};
+	%		ok->
+	%		    io:format("NewWorkerNode,NewWorkerDir,ApplicationDir,ApplSpec,App ~p~n",[{NewWorkerNode,NewWorkerDir,ApplicationDir,ApplSpec,App,?MODULE,?LINE}]),
+	%		    erlang:monitor_node(NewWorkerNode,true),
+	%		    NodesToMonitor=lists:usort([NewWorkerNode|State#state.monitored_nodes]),		  
+	%		    NewState=State#state{deployed_appl=[{NewWorkerNode,NewWorkerDir,ApplicationDir,ApplSpec,App}|L1],
+	%					 monitored_nodes=NodesToMonitor}
+	%	    end
+	 %   end
     end,
     {noreply, NewState};
 

@@ -42,8 +42,7 @@ load_appl(ApplSpec)->
 				       {error,Reason}->
 					   {error,[ApplSpec,Reason]};
 				       {ok,ApplicationDir}->
-					   DeploymentId=os:system_time(nanosecond),
-					   {ok,DeploymentId,WorkerNode,WorkerDir,ApplicationDir,ApplSpec,App}
+					   {ok,WorkerNode,WorkerDir,ApplicationDir,ApplSpec,App}
 				   end
 			   end
 		   end

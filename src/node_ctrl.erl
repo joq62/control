@@ -15,7 +15,7 @@
 %%--------------------------------------------------------------------
 
 -include("log.api").
--include("node_record.hrl").
+-include("node.hrl").
 -include("control_config.hrl").
 
 
@@ -201,34 +201,40 @@ init([]) ->
 
 handle_call({create_workers}, _From, State) ->
     Result=lib_node_ctrl:create_workers(State#state.worker_info),
-    NodeInfoToAdd=[{NodeName,NodeDir,Node,HostName,CookieStr}||{ok,NodeName,NodeDir,Node,HostName,CookieStr}<-Result],
+    NodeInfoToAdd=[NodeInfoRecord||{ok,NodeInfoRecord}<-Result],
     NewWorkerList=lists:usort(lists:append(NodeInfoToAdd,State#state.worker_list)),
     NewState=State#state{worker_list=NewWorkerList},
     Reply= Result,
     {reply, Reply, NewState};
 
-handle_call({create_worker,NodeName,NodeDir}, _From, State) ->
-    Node=list_to_atom(NodeName++"@"++State#state.hostname),    
-    Reply=case lib_node_ctrl:create_worker(NodeName,NodeDir,Node,State#state.hostname,State#state.cookie_str) of
+handle_call({create_worker,NodeName,WorkerDir}, _From, State) ->
+    WorkerNode=list_to_atom(NodeName++"@"++State#state.hostname),    
+    NodeInfoRecord=#node_info{worker_node=WorkerNode,
+			      worker_dir=WorkerDir,
+			      nodename=NodeName,
+			      hostname=State#state.hostname,
+			      cookie_str=State#state.cookie_str},
+    
+    Reply=case lib_node_ctrl:create_worker(NodeInfoRecord) of
 	      {error,Reason}->
 		  NewState=State,
 		  {error,Reason};
-	      {ok,NodeName,NodeDir,Node,HostName,CookieStr}->
-		  NewWorkerList=lists:usort([{NodeName,NodeDir,Node,HostName,CookieStr}|State#state.worker_list]),
+	      {ok,NodeInfoRecord}->
+		  NewWorkerList=lists:usort([NodeInfoRecord|State#state.worker_list]),
 		  NewState=State#state{worker_list=NewWorkerList},
-		  {ok,NodeName,Node,NodeDir}
+		  {ok,NodeInfoRecord}
 	  end,
     
     {reply, Reply, NewState};
 
-handle_call({delete_worker,NodeName}, _From, State) ->
-    Reply=case lists:keyfind(NodeName,1,State#state.worker_list) of
+handle_call({delete_worker,NodeInfoRecord}, _From, State) ->
+    Reply=case node_info:find(NodeInfoRecord,State#state.worker_list) of
 	      false->
 		  NewState=State,
-		  {error,["Nodename doesnt exists in worker_list",NodeName,State#state.worker_list]};
-	      {NodeName,NodeDir,Node,HostName,CookieStr}->
-		  lib_node_ctrl:delete_worker(NodeDir,Node),
-		  NewWorkerList=lists:delete({NodeName,NodeDir,Node,HostName,CookieStr},State#state.worker_list),
+		  {error,["NodeInfoRecord doesnt exists in worker_list",NodeInfoRecord,State#state.worker_list]};
+	      NodeInfoRecord->
+		  lib_node_ctrl:delete_worker(NodeInfoRecord),
+		  NewWorkerList=lists:delete(NodeInfoRecord,State#state.worker_list),
 		  NewState=State#state{worker_list=NewWorkerList},
 		  ok
 	  end,
@@ -242,9 +248,9 @@ handle_call({allocate}, _From, State) ->
 	      {error,Reason}->
 		  NewState=State,
 		  {error,Reason};
-	      {ok,WorkerNode,WorkerDir,NewWorkerList}->
+	      {ok,NodeInfoRecord,NewWorkerList}->
 		  NewState=State#state{worker_list=NewWorkerList},
-		  {ok,WorkerNode,WorkerDir}
+		  {ok,NodeInfoRecord}
 	  end,
     
     {reply, Reply, NewState};
@@ -287,18 +293,19 @@ handle_cast(UnMatchedSignal, State) ->
 
 handle_info({nodedown,Node}, State) ->
     io:format("nodedown,Node  ~p~n",[{Node,?MODULE,?LINE}]),
-    case lists:keyfind(Node,3,State#state.worker_list) of
+    case node_info:keyfind(worker_node,Node,State#state.worker_list) of
 	false->
 	    NewState=State,
 	    {error,["Node doesnt exist i worker_list ",Node,?MODULE,?LINE]};
-	{NodeName,NodeDir,Node,HostName,CookieStr}->
-	    case lib_node_ctrl:create_worker(NodeName,NodeDir,Node,HostName,CookieStr) of
+	NodeInfoRecord->
+	    case lib_node_ctrl:create_worker(NodeInfoRecord) of
 		{error,Reason}->
 		    NewState=State,
 		    {error,Reason};
-		{ok,NodeName,NodeDir,Node,HostName,CookieStr}->
+		{ok,NewNodeInfoRecord}->
 		    io:format("Restarted node  ~p~n",[{Node,?MODULE,?LINE}]),
-		    NewWorkerList=lists:usort([{NodeName,NodeDir,Node,HostName,CookieStr}|State#state.worker_list]),
+		    L1=lists:delete(NodeInfoRecord,State#state.worker_list),
+		    NewWorkerList=[NewNodeInfoRecord|L1],
 		    NewState=State#state{worker_list=NewWorkerList}
 			
 	    end

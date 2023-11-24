@@ -21,7 +21,7 @@
 <h2><a name="index">Function Index</a></h2>
 <table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#is_alive-2">is_alive/2</a></td><td>
   Get all information related to host HostName.</td></tr>
-<tr><td valign="top"><a href="#load_appl-1">load_appl/1</a></td><td>
+<tr><td valign="top"><a href="#load_appl-2">load_appl/2</a></td><td>
   load application.</td></tr>
 <tr><td valign="top"><a href="#loaded_appls-0">loaded_appls/0</a></td><td>
   Get all information related to host HostName.</td></tr>
@@ -48,9 +48,9 @@
 </div><p>
   Get all information related to host HostName</p>
 
-<h3 class="function"><a name="load_appl-1">load_appl/1</a></h3>
+<h3 class="function"><a name="load_appl-2">load_appl/2</a></h3>
 <div class="spec">
-<p><tt>load_appl(ApplSpec::string()) -&gt; ok | {error, Error::term()}</tt><br></p>
+<p><tt>load_appl(NodeInfoRecord::term(), ApplSpec::string()) -&gt; {ok, DeployInfoRecord::term()} | {error, Error::term()}</tt><br></p>
 <p> </p>
 </div><p>
   load application</p>
@@ -78,7 +78,7 @@
 
 <h3 class="function"><a name="start_appl-1">start_appl/1</a></h3>
 <div class="spec">
-<p><tt>start_appl(DeploymentId::integer()) -&gt; ok | {error, Error::term()}</tt><br></p>
+<p><tt>start_appl(DeployInfoRecord::term()) -&gt; ok | {error, Error::term()}</tt><br></p>
 <p> </p>
 </div><p>
    application</p>
@@ -98,14 +98,14 @@
 
 <h3 class="function"><a name="stop_appl-1">stop_appl/1</a></h3>
 <div class="spec">
-<p><tt>stop_appl(DeploymentId::integer()) -&gt; ok | {error, Error::term()}</tt><br></p>
+<p><tt>stop_appl(DeployInfoRecord::term()) -&gt; ok | {error, Error::term()}</tt><br></p>
 <p> </p>
 </div><p>
    application</p>
 
 <h3 class="function"><a name="unload_appl-1">unload_appl/1</a></h3>
 <div class="spec">
-<p><tt>unload_appl(DeploymentId::term()) -&gt; ok | {error, Error::term()}</tt><br></p>
+<p><tt>unload_appl(DeployInfoRecord::term()) -&gt; ok | {error, Error::term()}</tt><br></p>
 <p> </p>
 </div><p>
    application</p>

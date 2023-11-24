@@ -5,9 +5,9 @@
               {mod,{control_app,[]}},
               {applications,[kernel,stdlib]},
               {env,[]},
-              {modules,[appl_ctrl,control,control_app,control_node,
-                        control_provider_server,control_sup,lib_appl_ctrl,
-                        lib_control,lib_node,lib_node_ctrl,lib_provider,
-                        node_ctrl,orchestrator,provider]},
+              {modules,[appl_ctrl,control,control_app,control_provider_server,
+                        control_sup,deployment_info,lib_appl_ctrl,lib_control,
+                        lib_node_ctrl,lib_provider,node_ctrl,node_info,
+                        provider]},
               {licenses,["Apache-2.0"]},
               {links,[]}]}.

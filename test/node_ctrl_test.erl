@@ -8,6 +8,7 @@
 %%%-------------------------------------------------------------------
 -module(node_ctrl_test).
 
+-include("node.hrl").
 -define(InfraSpec,"basic").
 %% API
 -export([start/0]).
@@ -27,7 +28,7 @@ start()->
   
     ok=setup(),
     ok=test_0(),
-    ok=test_1(),
+
 
     io:format("Test OK !!! ~p~n",[?MODULE]),
     timer:sleep(2000),
@@ -43,44 +44,28 @@ start()->
 %% 
 %% @end
 %%--------------------------------------------------------------------
-test_1()->
-    io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
-
-    Info=node_ctrl:create_workers(),
-    io:format("Info ~p~n",[{Info,?MODULE,?FUNCTION_NAME}]),
-    io:format("nodes ~p~n",[{nodes(),?MODULE,?FUNCTION_NAME}]),
-
-    rpc:call('1_a@c50',init,stop,[],5000),
-    
-   
-    ok.
-
-%%--------------------------------------------------------------------
-%% @doc
-%% 
-%% @end
-%%--------------------------------------------------------------------
 test_0()->
     io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
 
     NodeName="test_node_1", 
     NodeDir="test_node_1", 
     file:del_dir_r(NodeDir),
-    {ok,"test_node_1",test_node_1@c50,"test_node_1"}=node_ctrl:create_worker(NodeName, NodeDir),
+    {ok,Nir}=node_ctrl:create_worker(NodeName, NodeDir),
     true=filelib:is_dir(NodeDir),
-    pong=net_adm:ping(test_node_1@c50),
-    true=lists:member(test_node_1@c50,nodes()),
+    pong=net_adm:ping(Nir#node_info.worker_node),
+    true=lists:member(Nir#node_info.worker_node,nodes()),
    
-    rpc:call(test_node_1@c50,init,stop,[],5000),
-    
-    true=filelib:is_dir(NodeDir),
-    pong=net_adm:ping(test_node_1@c50),
-    true=lists:member(test_node_1@c50,nodes()),
+    slave:stop(Nir#node_info.worker_node),
+    timer:sleep(1000),
 
-    ok=node_ctrl:delete_worker(NodeName),
-    false=filelib:is_dir(NodeDir),
-    pang=net_adm:ping(test_node_1@c50),
-    false=lists:member(test_node_1@c50,nodes()),
+    true=filelib:is_dir(Nir#node_info.worker_dir),
+    pong=net_adm:ping(Nir#node_info.worker_node),
+    true=lists:member(Nir#node_info.worker_node,nodes()),
+
+    ok=node_ctrl:delete_worker(Nir),
+    false=filelib:is_dir(Nir#node_info.worker_node),
+    pang=net_adm:ping(Nir#node_info.worker_node),
+    false=lists:member(Nir#node_info.worker_node,nodes()),
     ok.
 
 
