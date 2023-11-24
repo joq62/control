@@ -36,13 +36,8 @@
 %%--------------------------------------------------------------------
 allocate([])->
     {error,["No WorkerNodes available",?MODULE,?LINE]};
-allocate([{NodeName,WorkerDir,WorkerNode,HostName,CookieStr}|T])->
-    {ok,#node_info{worker_node=WorkerNode,
-	      worker_dir=WorkerDir,
-	      nodename=NodeName,
-	      hostname=HostName,
-	      cookie_str=CookieStr},
-     T++{NodeName,WorkerDir,WorkerNode,HostName,CookieStr}}.
+allocate([NodeInfoRecord|T])->
+    {ok,NodeInfoRecord,T++NodeInfoRecord}.
     
 
 %%--------------------------------------------------------------------

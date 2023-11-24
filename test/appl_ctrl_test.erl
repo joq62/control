@@ -8,6 +8,11 @@
 %%%-------------------------------------------------------------------
 -module(appl_ctrl_test).
 
+
+-include("node.hrl").
+-include("appl.hrl").
+
+
 -define(TestAppl,"adder").
 %% API
 -export([start/0]).
@@ -26,9 +31,9 @@ start()->
     io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
   
     ok=setup(),
-    ok=test_0(),
-    ok=test_1(),
-
+ 
+    ok=test0(),
+ 
     io:format("Test OK !!! ~p~n",[?MODULE]),
     timer:sleep(2000),
 %    init:stop(),
@@ -37,6 +42,81 @@ start()->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+%%--------------------------------------------------------------------
+%% @doc
+%% 
+%% @end
+%%--------------------------------------------------------------------
+test0()->
+
+    io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),    
+    {ok,NodeInfo}=node_ctrl:allocate(),
+    WorkerNode=NodeInfo#node_info.worker_node,
+    
+    {ok,Deployment_rd}=load_start(NodeInfo,"resource_discovery"),
+    {ok,Deployment_log}=load_start(NodeInfo,"log"),
+    {ok,Deployment_adder}=load_start(NodeInfo,"adder"),
+
+    
+    
+    42=rpc:call(WorkerNode,adder,add,[20,22],3000),
+    io:format("which applications ~p~n",[{rpc:call(WorkerNode,application,which_applications,[],3000),?MODULE,?LINE}]),
+    
+    ok=stop_unload(Deployment_adder,"adder"),
+    {badrpc,_}=rpc:call(WorkerNode,adder,add,[20,22],3000),
+    io:format("which applications ~p~n",[{rpc:call(WorkerNode,application,which_applications,[],3000),?MODULE,?LINE}]),
+
+    ok=stop_unload(Deployment_log,"log"),
+    {badrpc,_}=rpc:call(WorkerNode,log,ping,[],3000),
+    io:format("which applications ~p~n",[{rpc:call(WorkerNode,application,which_applications,[],3000),?MODULE,?LINE}]),
+    
+    ok=stop_unload(Deployment_rd,"resource_discovery"),
+    {badrpc,_}=rpc:call(WorkerNode,rd,ping,[],3000),
+    io:format("which applications ~p~n",[{rpc:call(WorkerNode,application,which_applications,[],3000),?MODULE,?LINE}]),
+    
+    
+
+
+    ok.
+
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% 
+%% @end
+%%--------------------------------------------------------------------
+stop_unload(Deployment,ApplSpec)->
+    io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
+
+    ok=appl_ctrl:stop_appl(Deployment),
+    NodeInfo=Deployment#deployment.node_info,
+    WorkerNode=NodeInfo#node_info.worker_node,
+    
+    {ok,App}=etcd_application:get_app(ApplSpec),    
+    {badrpc,_}=rpc:call(WorkerNode,App,ping,[],6000),
+    
+    ok=appl_ctrl:unload_appl(Deployment),
+    ApplInfo=Deployment#deployment.appl_info,
+    ApplDir=ApplInfo#appl_info.appl_dir,
+    false=filelib:is_dir(ApplDir),
+    ok.
+    
+%%--------------------------------------------------------------------
+%% @doc
+%% 
+%% @end
+%%--------------------------------------------------------------------
+load_start(NodeInfo,ApplSpec)->
+    io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
+
+    {ok,Deployment}=appl_ctrl:load_appl(NodeInfo,ApplSpec),
+    ok=appl_ctrl:start_appl(Deployment),
+
+    WorkerNode=NodeInfo#node_info.worker_node,
+    {ok,App}=etcd_application:get_app(ApplSpec),    
+    pong=rpc:call(WorkerNode,App,ping,[],6000),
+    {ok,Deployment}.
 
 %%--------------------------------------------------------------------
 %% @doc

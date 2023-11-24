@@ -8,12 +8,18 @@
 %%%-------------------------------------------------------------------
 -module(lib_appl_ctrl).
 
+
+-include("node.hrl").
+-include("appl.hrl").
+
+
+
 %% API
 -export([
-	load_appl/1,
-	 unload_appl/3,
-	 start_appl/2,
-	 stop_appl/3
+	load_appl/2,
+	 unload_appl/1,
+	 start_appl/1,
+	 stop_appl/1
 	]).
 
 %%%===================================================================
@@ -25,25 +31,24 @@
 %% 
 %% @end
 %%--------------------------------------------------------------------
-load_appl(ApplSpec)->
-     Result=case node_ctrl:allocate() of
+load_appl(NodeInfoRecord,ApplSpec)->
+    Result=case etcd_application:get_app(ApplSpec) of
 	       {error,Reason}->
-		   {error,[ApplSpec,Reason,?MODULE,?LINE]};
-	       {ok,WorkerNode,WorkerDir}->
-		    case etcd_application:get_app(ApplSpec) of
+		   {error,[ApplSpec,Reason]};
+	       {ok,App}->
+		   case etcd_application:get_git_path(ApplSpec) of
 		       {error,Reason}->
 			   {error,[ApplSpec,Reason]};
-		       {ok,App}->
-			   case etcd_application:get_git_path(ApplSpec) of
+		       {ok,GitPath}->
+			   WorkerNode=NodeInfoRecord#node_info.worker_node,
+			   WorkerDir=NodeInfoRecord#node_info.worker_dir,
+			   case load(WorkerNode,WorkerDir,ApplSpec,App,GitPath) of
 			       {error,Reason}->
 				   {error,[ApplSpec,Reason]};
-			       {ok,GitPath}->
-				   case load(WorkerNode,WorkerDir,ApplSpec,App,GitPath) of
-				       {error,Reason}->
-					   {error,[ApplSpec,Reason]};
-				       {ok,ApplicationDir}->
-					   {ok,WorkerNode,WorkerDir,ApplicationDir,ApplSpec,App}
-				   end
+			       {ok,ApplDir}->
+				   ApplInfoRecord=#appl_info{appl_spec=ApplSpec,
+							     appl_dir=ApplDir},
+				   {ok,ApplInfoRecord}
 			   end
 		   end
 	   end,
@@ -54,20 +59,31 @@ load_appl(ApplSpec)->
 %% 
 %% @end
 %%--------------------------------------------------------------------
-unload_appl(WorkerNode,ApplicationDir,App)->
-    Result=case rpc:call(WorkerNode,application,unload,[App],5*5000) of
-	       {badrpc,Reason}->
-		   {error,["Failed to unload  Application on Node ",App,WorkerNode,Reason,?MODULE,?LINE]};
+unload_appl(Deployment)->
+    NodeInfo=Deployment#deployment.node_info,
+    WorkerNode=NodeInfo#node_info.worker_node,
+    
+    ApplInfo=Deployment#deployment.appl_info,
+    ApplSpec=ApplInfo#appl_info.appl_spec,
+    Result=case etcd_application:get_app(ApplSpec) of
 	       {error,Reason}->
-		   {error,["Failed to unload Application on Node ",App,WorkerNode,Reason,?MODULE,?LINE]};
-	       ok->
-		   case rpc:call(WorkerNode,file,del_dir_r,[ApplicationDir],5000) of
+		   {error,Reason};
+	       {ok,App} ->
+		   case rpc:call(WorkerNode,application,unload,[App],5*5000) of
 		       {badrpc,Reason}->
-			   {error,["Failed to delete ApplicationDir on Node ",ApplicationDir,App,WorkerNode,Reason,?MODULE,?LINE]};
+			   {error,["Failed to unload  Application on Node ",App,WorkerNode,Reason,?MODULE,?LINE]};
 		       {error,Reason}->
-			   {error,["Failed to delete ApplicationDir on Node ",ApplicationDir,App,WorkerNode,Reason,?MODULE,?LINE]};
+			   {error,["Failed to unload Application on Node ",App,WorkerNode,Reason,?MODULE,?LINE]};
 		       ok->
-			   ok
+			   ApplDir=ApplInfo#appl_info.appl_dir,
+			   case rpc:call(WorkerNode,file,del_dir_r,[ApplDir],5000) of
+			       {badrpc,Reason}->
+				   {error,["Failed to delete ApplDir on Node ",ApplDir,App,WorkerNode,Reason,?MODULE,?LINE]};
+			       {error,Reason}->
+				   {error,["Failed to delete ApplDir on Node ",ApplDir,App,WorkerNode,Reason,?MODULE,?LINE]};
+			       ok->
+				   ok
+			   end
 		   end
 	   end,
     Result.
@@ -77,14 +93,24 @@ unload_appl(WorkerNode,ApplicationDir,App)->
 %% 
 %% @end
 %%--------------------------------------------------------------------
-start_appl(WorkerNode,App)->
-    Result=case rpc:call(WorkerNode,application,start,[App],5*5000) of
-	       {badrpc,Reason}->
-		   {error,["badrpc Failed to start Application on Node ",App,WorkerNode,Reason,?MODULE,?LINE]};
+start_appl(Deployment)->
+    NodeInfo=Deployment#deployment.node_info,
+    WorkerNode=NodeInfo#node_info.worker_node,
+    
+    ApplInfo=Deployment#deployment.appl_info,
+    ApplSpec=ApplInfo#appl_info.appl_spec,
+    Result=case etcd_application:get_app(ApplSpec) of
 	       {error,Reason}->
-		   {error,["Failed to start Application on Node ",App,WorkerNode,Reason,?MODULE,?LINE]};
-	       ok->
-		   ok
+		   {error,Reason};
+	       {ok,App} ->
+		   case rpc:call(WorkerNode,application,start,[App],5*5000) of
+		       {badrpc,Reason}->
+			   {error,["badrpc Failed to start Application on Node ",App,WorkerNode,Reason,?MODULE,?LINE]};
+		       {error,Reason}->
+			   {error,["Failed to start Application on Node ",App,WorkerNode,Reason,?MODULE,?LINE]};
+		       ok->
+			   ok
+		   end
 	   end,
     Result.
 
@@ -93,16 +119,29 @@ start_appl(WorkerNode,App)->
 %% 
 %% @end
 %%--------------------------------------------------------------------
-stop_appl(WorkerNode,ApplicationDir,App)->
-    Result=case rpc:call(WorkerNode,application,stop,[App],5000) of
-	       {badrpc,Reason}->
-		   {error,["Failed to stop Application on Node ",App,WorkerNode,Reason,?MODULE,?LINE]};
+stop_appl(Deployment)->
+    NodeInfo=Deployment#deployment.node_info,
+    WorkerNode=NodeInfo#node_info.worker_node,
+    
+    ApplInfo=Deployment#deployment.appl_info,
+    ApplSpec=ApplInfo#appl_info.appl_spec,
+    ApplicationDir=ApplInfo#appl_info.appl_dir,
+    Result=case etcd_application:get_app(ApplSpec) of
 	       {error,Reason}->
-		   {error,["Failed to stop Application on Node ",App,WorkerNode,Reason,?MODULE,?LINE]};
-	       ok->
-		   Ebin=filename:join(ApplicationDir,"ebin"),
-		   Priv=filename:join(ApplicationDir,"priv"),		   
-		   rpc:call(WorkerNode,code,del_paths,[[Ebin,Priv]],5000)
+		   {error,Reason};
+	       {ok,App} ->
+		   case rpc:call(WorkerNode,application,stop,[App],5000) of
+		       {badrpc,Reason}->
+			   {error,["Failed to stop Application on Node ",App,WorkerNode,Reason,?MODULE,?LINE]};
+		       {error,Reason}->
+			   {error,["Failed to stop Application on Node ",App,WorkerNode,Reason,?MODULE,?LINE]};
+		       ok->
+			   Ebin=filename:join(ApplicationDir,"ebin"),
+			   Priv=filename:join(ApplicationDir,"priv"),		   
+			   rpc:call(WorkerNode,code,del_path,[Ebin],5000),
+			   rpc:call(WorkerNode,code,del_path,[Priv],5000),
+			   ok
+		   end
 	   end,
     Result.
 			    
@@ -154,7 +193,7 @@ load(WorkerNode,WorkerDir,Application,App,GitPath)->
 				       {error,Reason}->
 					   {error,["Failed to load Application  ",App,?MODULE,?LINE,Reason]};
 				       ok->
-					   {ok,WorkerDir}
+					   {ok,ApplicationDir}
 				   end
 			   end
 		   end

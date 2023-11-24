@@ -66,7 +66,7 @@
 %% 
 %% @end
 %%--------------------------------------------------------------------
--spec  allocate() -> { WorkerNode :: node(),WorkerDir :: string()} | 
+-spec  allocate() -> { NodeInfoRecord :: term(),NodeInfoRecordList:: term()} | 
 	  {error, Error :: term()}.
 allocate() ->
     gen_server:call(?SERVER,{allocate},infinity).
