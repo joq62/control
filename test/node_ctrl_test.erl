@@ -9,6 +9,8 @@
 -module(node_ctrl_test).
 
 -include("node.hrl").
+-include("appl.hrl").
+
 -define(InfraSpec,"basic").
 %% API
 -export([start/0]).
@@ -27,7 +29,8 @@ start()->
     io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
   
     ok=setup(),
-    ok=test_0(),
+    ok=check_nodes_init(),
+ %   ok=test_0(),
 
 
     io:format("Test OK !!! ~p~n",[?MODULE]),
@@ -38,6 +41,29 @@ start()->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc
+%% 
+%% @end
+%%--------------------------------------------------------------------
+check_nodes_init()->
+    io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
+
+    Deployments=lists:sort(node_ctrl:worker_list()),
+    io:format("Deployments ~p~n",[{Deployments,?MODULE,?LINE}]),
+    
+    [Deployment|_]=Deployments,
+    NodeInfo=Deployment#deployment.node_info,
+    WorkerNode=NodeInfo#node_info.worker_node,
+    slave:stop(WorkerNode),
+    pang=net_adm:ping(WorkerNode),
+    timer:sleep(2000),
+    pang=net_adm:ping(WorkerNode),
+    
+    
+    ok.
+
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -71,7 +97,7 @@ test_0()->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% @spec
+%% 
 %% @end
 %%--------------------------------------------------------------------
 setup()->

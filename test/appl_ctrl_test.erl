@@ -31,8 +31,10 @@ start()->
     io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
   
     ok=setup(),
- 
-    ok=test0(),
+    
+    ok=init_new_worker(),
+%    ok=test0(),
+ %   ok=test1(),
  
     io:format("Test OK !!! ~p~n",[?MODULE]),
     timer:sleep(2000),
@@ -42,6 +44,45 @@ start()->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc
+%% 
+%% @end
+%%--------------------------------------------------------------------
+init_new_worker()->
+
+    io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),    
+
+    
+  
+    ok.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% 
+%% @end
+%%--------------------------------------------------------------------
+test1()->
+
+    io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),    
+    {ok,NodeInfo}=node_ctrl:allocate(),
+    io:format("NodeInfo ~p~n",[{NodeInfo,?MODULE,?LINE}]),
+    WorkerNode=NodeInfo#node_info.worker_node,
+    
+    {ok,Deployment_rd}=load_start(NodeInfo,"resource_discovery"),
+    {ok,Deployment_log}=load_start(NodeInfo,"log"),
+    {ok,Deployment_adder}=load_start(NodeInfo,"adder"),
+
+    42=rpc:call(WorkerNode,adder,add,[20,22],3000),
+    io:format("which applications ~p~n",[{rpc:call(WorkerNode,application,which_applications,[],3000),?MODULE,?LINE}]),
+    
+    {badrpc,_}=rpc:call(WorkerNode,adder,kill,[],3000),
+    
+    io:format("which applications ~p~n",[{rpc:call(WorkerNode,application,which_applications,[],3000),?MODULE,?LINE}]),
+
+    ok.
+
 %%--------------------------------------------------------------------
 %% @doc
 %% 

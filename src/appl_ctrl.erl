@@ -21,6 +21,8 @@
 %% API
 
 -export([
+	 init_new_worker/0,
+	 add_appl/2,
 	 load_appl/2,
 	 start_appl/1,
 	 stop_appl/1,
@@ -52,6 +54,29 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc
+%% init_new_worker, allocate, load and start infra appls
+%% @end
+%%--------------------------------------------------------------------
+-spec add_appl(DeploymentInfra :: term(),ApplSpec :: string()) -> {ok,Deployment :: term()} | 
+	  {error, Error :: term()}.
+
+add_appl(DeploymentInfra,ApplSpec) ->
+    gen_server:call(?SERVER, {add_appl,DeploymentInfra,ApplSpec},infinity).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% adds a application to a worker that is initiated
+%% @end
+%%--------------------------------------------------------------------
+-spec init_new_worker() -> {ok,Deployment :: term()} | 
+	  {error, Error :: term()}.
+
+init_new_worker() ->
+    gen_server:call(?SERVER, {init_new_worker},infinity).
+
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -189,6 +214,30 @@ init([]) ->
 	  {stop, Reason :: term(), NewState :: term()}.
 
 
+
+handle_call({init_new_worker}, _From, State) ->
+    Reply=case lib_appl_ctrl:init_new_worker() of
+	      {error,Reason}->
+		  NewState=State,
+		  {error,Reason};
+	      {ok,DeploymentList}->
+		  NewState=State#state{deployments=lists:append(DeploymentList,State#state.deployments)},
+		  {ok,DeploymentList}
+	  end,
+    {reply, Reply, NewState};
+
+handle_call({add_appl,DeploymentInfra,ApplSpec}, _From, State) ->
+    Reply=case lib_appl_ctrl:add_appl(DeploymentInfra,ApplSpec) of
+	      {error,Reason}->
+		  NewState=State,
+		  {error,Reason};
+	      {ok,Deployment}->
+		  NewState=State#state{deployments=[Deployment|State#state.deployments]},
+		  {ok,Deployment}
+	  end,
+    {reply, Reply, NewState};
+
+
 handle_call({load_appl,NodeInfoRecord,ApplSpec}, _From, State) ->
     Reply=case lib_appl_ctrl:load_appl(NodeInfoRecord,ApplSpec) of
 	      {error,Reason}->
@@ -307,7 +356,6 @@ handle_cast(UnMatchedSignal, State) ->
 handle_info({nodedown,WorkerNode}, State) ->
     io:format("nodedown ~p~n",[{WorkerNode,?MODULE,?LINE}]),
     erlang:monitor_node(WorkerNode,false),
-    
     case deployment_info:keyfind(worker_node,WorkerNode,State#state.deployments) of
 	false->
 	    io:format("error ~p~n",[{"eexists WorkerNode ",WorkerNode,?MODULE,?LINE}]),
@@ -315,6 +363,9 @@ handle_info({nodedown,WorkerNode}, State) ->
 	    {error,["eexists WorkerNode ",WorkerNode,?MODULE,?LINE]};
 	DeploymentsWorkerNode->
 	    io:format("DeploymentsWorkerNode  ~p~n",[{DeploymentsWorkerNode,?MODULE,?LINE}]),
+	    %% remove 
+	    
+	    
 	    NewState=State
 	  
 

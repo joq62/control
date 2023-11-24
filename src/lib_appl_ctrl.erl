@@ -11,12 +11,16 @@
 
 -include("node.hrl").
 -include("appl.hrl").
+-include("infra_appls.hrl").
 
 
 
 %% API
 -export([
-	load_appl/2,
+	 init_new_worker/0,
+	 add_appl/2,
+
+	 load_appl/2,
 	 unload_appl/1,
 	 start_appl/1,
 	 stop_appl/1
@@ -25,7 +29,63 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+%%--------------------------------------------------------------------
+%% @doc
+%% 
+%% @end
+%%--------------------------------------------------------------------
+add_appl(DeploymentInfra,ApplSpec)->
+    NodeInfo=DeploymentInfra#deployment.node_info,
+    Result=case load_appl(NodeInfo,ApplSpec) of
+	       {error,Reason}->
+		   {error,Reason};   
+	       {ok,ApplInfo}->
+		   Deployment=#deployment{node_info=NodeInfo,appl_info=ApplInfo},
+		   case start_appl(Deployment) of
+		       {error,Reason}->
+			   {error,Reason};   
+		       ok->
+			   {ok,Deployment}
+		   end
+	   end,
+    Result.
 
+
+%%--------------------------------------------------------------------
+%% @doc
+%% 
+%% @end
+%%--------------------------------------------------------------------
+init_new_worker()->
+    {ok,NodeInfo}=node_ctrl:allocate(),
+    load_start(?InfraAppls,NodeInfo,[]).   
+
+load_start([],_NodeInfo,Acc)->
+    case [{error,Reason}||{error,Reason}<-Acc] of
+	[]->
+	    Deployments=[Deployment||{ok,Deployment}<-Acc],
+	    {ok,Deployments};
+	ErrorList->
+	    {error,["Failed to init new worker",ErrorList,?MODULE,?LINE]}
+    end;
+load_start([ApplSpec|T],NodeInfo,Acc) ->
+    Result=case load_appl(NodeInfo,ApplSpec) of
+	       {error,Reason}->
+		   {error,Reason};
+	       {ok,ApplInfoRecord}->
+		   Deployment=#deployment{node_info=NodeInfo,appl_info=ApplInfoRecord},
+		   case start_appl(Deployment) of
+		       {error,Reason}->
+			   {error,Reason};
+		       ok->
+			   {ok,Deployment}
+		   end
+	   end,
+    load_start(T,NodeInfo,[Result|Acc]).
+    
+	    
+
+    
 %%--------------------------------------------------------------------
 %% @doc
 %% 
@@ -46,6 +106,7 @@ load_appl(NodeInfoRecord,ApplSpec)->
 			       {error,Reason}->
 				   {error,[ApplSpec,Reason]};
 			       {ok,ApplDir}->
+				    erlang:monitor_node(WorkerNode,true),
 				   ApplInfoRecord=#appl_info{appl_spec=ApplSpec,
 							     appl_dir=ApplDir},
 				   {ok,ApplInfoRecord}
@@ -103,7 +164,7 @@ start_appl(Deployment)->
 	       {error,Reason}->
 		   {error,Reason};
 	       {ok,App} ->
-		   case rpc:call(WorkerNode,application,start,[App],5*5000) of
+		   case rpc:call(WorkerNode,application,start,[App,permanent],5*5000) of
 		       {badrpc,Reason}->
 			   {error,["badrpc Failed to start Application on Node ",App,WorkerNode,Reason,?MODULE,?LINE]};
 		       {error,Reason}->

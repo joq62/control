@@ -19,7 +19,11 @@
 <h2><a name="description">Description</a></h2>
   
 <h2><a name="index">Function Index</a></h2>
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#is_alive-2">is_alive/2</a></td><td>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_appl-2">add_appl/2</a></td><td>
+  init_new_worker, allocate, load and start infra appls.</td></tr>
+<tr><td valign="top"><a href="#init_new_worker-0">init_new_worker/0</a></td><td>
+  adds a application to a worker that is initiated.</td></tr>
+<tr><td valign="top"><a href="#is_alive-2">is_alive/2</a></td><td>
   Get all information related to host HostName.</td></tr>
 <tr><td valign="top"><a href="#load_appl-2">load_appl/2</a></td><td>
   load application.</td></tr>
@@ -40,6 +44,20 @@
 </table>
 
 <h2><a name="functions">Function Details</a></h2>
+
+<h3 class="function"><a name="add_appl-2">add_appl/2</a></h3>
+<div class="spec">
+<p><tt>add_appl(DeploymentInfra::term(), ApplSpec::string()) -&gt; {ok, Deployment::term()} | {error, Error::term()}</tt><br></p>
+<p> </p>
+</div><p>
+  init_new_worker, allocate, load and start infra appls</p>
+
+<h3 class="function"><a name="init_new_worker-0">init_new_worker/0</a></h3>
+<div class="spec">
+<p><tt>init_new_worker() -&gt; {ok, Deployment::term()} | {error, Error::term()}</tt><br></p>
+<p> </p>
+</div><p>
+  adds a application to a worker that is initiated</p>
 
 <h3 class="function"><a name="is_alive-2">is_alive/2</a></h3>
 <div class="spec">

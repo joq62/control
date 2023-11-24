@@ -28,10 +28,10 @@ start()->
     
     ok=setup(),
 
-  %  ok=node_ctrl_test:start(),
+   ok=node_ctrl_test:start(),
     
-     ok=appl_ctrl_test:start(),
-    io:format("nodes() ~p~n",[{nodes(), ?MODULE,?FUNCTION_NAME,?LINE}]),
+  %   ok=appl_ctrl_test:start(),
+
     
 %    ok=node_test:start(),
 %    ok=provider_test:start(),

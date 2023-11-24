@@ -19,7 +19,8 @@
 -include("log.api").
 
 -define(InfraSpecId,"basic"). 
-
+-include("node.hrl").
+-include("appl.hrl").
 
 
 -define(BuildPath,"ebin").
@@ -456,16 +457,18 @@ handle_info(timeout, State) ->
     %%--------------------  State Connected -------------------
     
     %% 3. create workes for the host
-    CreateWorkersResult=node_ctrl:create_workers(),
-    
-    
+    {ok,Deployments}=node_ctrl:create_workers(),
+        
     %% Ensure connected
-  %  [rpc:call(N1,net_adm,ping,[N2],5000)||N1<-ListOfWorkerNodes,
-%					  N2<-ConnecNodes],
+ %   NodeInfos=[Deployment#deployment.node_info||Deployment<-Deployments],
+    
+ %  [rpc:call(NodeInfo#node_info.worker_node,net_adm,ping,[N2],5000)||NodeInfo<-NodeInfos,
+%								     N2<-ConnecNodes],
     
     %%--------------------  State Worker running  -------------------
     
-    {noreply, State};
+    NewState=State#state{deployments=Deployments},
+    {noreply, NewState};
 
 handle_info(Info, State) ->
     glurk=Info,

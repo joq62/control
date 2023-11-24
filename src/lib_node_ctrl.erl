@@ -8,16 +8,19 @@
 %%%-------------------------------------------------------------------
 -module(lib_node_ctrl). 
 
+
 -include("node.hrl").
+-include("appl.hrl").
+
 
 -define(Iterations,100).
 %% API
 -export([
 	 allocate/1,
 
-	 create_worker/1,
+	 create_worker/2,
 	 delete_worker/1,
-	 create_workers/1,
+	 create_workers/2,
 	 create_node_info/3,
 	 
 	 is_node_started/1,
@@ -37,7 +40,7 @@
 allocate([])->
     {error,["No WorkerNodes available",?MODULE,?LINE]};
 allocate([NodeInfoRecord|T])->
-    {ok,NodeInfoRecord,T++NodeInfoRecord}.
+    {ok,NodeInfoRecord,T++[NodeInfoRecord]}.
     
 
 %%--------------------------------------------------------------------
@@ -45,16 +48,22 @@ allocate([NodeInfoRecord|T])->
 %% creates worker directories and starts all workers on the host 
 %% @end
 %%--------------------------------------------------------------------
-create_workers(ListOfNodeInfo)->
-    CreateResult=[create_worker(NodeInfoRecord)||NodeInfoRecord<-ListOfNodeInfo],
-    CreateResult.
+create_workers(ListOfNodeInfo,InfrAppls)->
+    CreateResult=[create_worker(NodeInfoRecord,InfrAppls)||NodeInfoRecord<-ListOfNodeInfo],
+    case [{error,Reason}||{error,Reason}<-CreateResult] of
+	[]->
+	    Deployments=lists:append([DeploymentList||{ok,DeploymentList}<-CreateResult]),
+	    {ok,Deployments};
+	ErrorList->
+	    {error,["Failed to init new worker",ErrorList,?MODULE,?LINE]}
+    end.
 
 %%--------------------------------------------------------------------
 %% @doc
 %% create worker directory and starts one  worker on the host 
 %% @end
 %%--------------------------------------------------------------------
-create_worker(NodeInfoRecord)->
+create_worker(NodeInfoRecord,InfrAppls)->
     delete_worker(NodeInfoRecord),
     Result=case file:make_dir(NodeInfoRecord#node_info.worker_dir) of
 	       {error,Reson}->
@@ -67,12 +76,16 @@ create_worker(NodeInfoRecord)->
 		       {error,Reason}->
 			   {error,["Failed to start Node ",Reason,NodeInfoRecord,ErlArgs,?MODULE,?LINE]};
 		       {ok,WorkerNode}->
-			   erlang:monitor_node(WorkerNode,true),
-			   {ok,NodeInfoRecord}
+			   case load_start_infra(InfrAppls,NodeInfoRecord,[]) of
+			       {error,Reason}->
+				   {error,Reason};
+			       {ok,DeploymentList}->
+				   erlang:monitor_node(WorkerNode,true),
+				    {ok,DeploymentList}
+			   end
 		   end
 	   end,
     Result.
-
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -111,7 +124,36 @@ create_node_info(N,HostName,CookieStr,Acc) ->
 					 
 %%%===================================================================
 %%% Internal functions
-%%%===================================================================
+%%%==================================================================
+
+%%--------------------------------------------------------------------
+%% @doc
+%% 
+%% @end
+%%--------------------------------------------------------------------
+load_start_infra([],_NodeInfo,Acc)->
+    case [{error,Reason}||{error,Reason}<-Acc] of
+	[]->
+	    Deployments=[Deployment||{ok,Deployment}<-Acc],
+	    {ok,Deployments};
+	ErrorList->
+	    {error,["Failed to init new worker",ErrorList,?MODULE,?LINE]}
+    end;
+
+load_start_infra([ApplSpec|T],NodeInfo,Acc) ->
+    Result=case appl_ctrl:load_appl(NodeInfo,ApplSpec) of
+	       {error,Reason}->
+		   {error,Reason};
+	       {ok,Deployment}->
+		   case appl_ctrl:start_appl(Deployment) of
+		       {error,Reason}->
+			   {error,Reason};
+		       ok->
+			   {ok,Deployment}
+		   end
+	   end,
+    load_start_infra(T,NodeInfo,[Result|Acc]).
+
 %%--------------------------------------------------------------------
 %% @doc
 %% 
