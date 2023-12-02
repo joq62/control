@@ -146,16 +146,6 @@ delete_worker(NodeName) ->
 kill()->
     gen_server:call(?SERVER, {kill},infinity).
 
-
-%%--------------------------------------------------------------------
-%% @doc
-%% 
-%% @end
-%%--------------------------------------------------------------------
--spec worker_list() -> NodeInfList :: term() | Error::term().
-worker_list()-> 
-    gen_server:call(?SERVER, {worker_list},infinity).
-
 %%--------------------------------------------------------------------
 %% @doc
 %% 

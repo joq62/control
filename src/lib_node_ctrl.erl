@@ -10,8 +10,6 @@
 
 
 -include("node.hrl").
--include("appl.hrl").
-
 
 -define(Iterations,100).
 %% API
@@ -55,11 +53,10 @@ create_worker(NodeInfo)->
 		   ErlArgs=" -setcookie "++NodeInfo#node_info.cookie_str,
 		   case slave:start(NodeInfo#node_info.hostname,NodeInfo#node_info.nodename,ErlArgs) of
 		       {error,{already_running,WorkerNode}}->
-			   {error,["Already running ",NodeInfo,ErlArgs,?MODULE,?LINE]};
+			   {error,["Already running ",WorkerNode,NodeInfo,ErlArgs,?MODULE,?LINE]};
 		       {error,Reason}->
 			   {error,["Failed to start Node ",Reason,NodeInfo,ErlArgs,?MODULE,?LINE]};
-		       {ok,WorkerNode}->
-			   
+		       {ok,_WorkerNode}->
 			   {ok,NodeInfo} 
 			  
 		   end
