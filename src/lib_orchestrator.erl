@@ -25,9 +25,28 @@
 %% load and start infra appls
 %% @end
 %%--------------------------------------------------------------------
-load_start_infra(InfraAppls,NodeInfoList)->
-    {ok,[glurk]}.
+load_start_infra(InfraAppls,RunningNodeInfoList)->
+    load_start_infra(InfraAppls,RunningNodeInfoList,[]).
 
+load_start_infra([],_RunningNodeInfoList,Acc)->
+    Error=[{error,Reason}||{error,Reason}<-Acc],
+    case Error of
+	[]->
+	    OkStart=[DeploymentInfo||{ok,DeploymentInfo}<-Acc],
+	    case OkStart of
+		[]->
+		    {error,["No application was started were created ",?MODULE,?LINE]};
+		OkStart->
+		    {ok,OkStart}
+	    end;
+	Error ->
+	    {error,["Failed to start workers ",Error,?MODULE,?LINE]}
+    end;
+
+load_start_infra([ApplSpec|T],RunningNodeInfoList,Acc)->
+    StartResult=[load_start(ApplSpec,NodeInfo)||NodeInfo<-RunningNodeInfoList],
+    NewAcc=lists:append(StartResult,Acc),
+    load_start_infra(T,RunningNodeInfoList,NewAcc).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -65,3 +84,26 @@ create_workers()->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+load_start(ApplSpec,NodeInfo)->
+    case appl_ctrl:load_appl(NodeInfo,ApplSpec) of
+	{error,Reason}->
+	    {error,Reason};
+	{ok,DeploymentInfo}->
+	    case appl_ctrl:start_appl(DeploymentInfo) of
+		{error,Reason}->
+		    {error,Reason};	
+		ok->
+		    WorkerNode=NodeInfo#node_info.worker_node,
+		    case etcd_application:get_app(ApplSpec) of
+			{error,Reason}->
+			    {error,Reason};
+			{ok,App}->
+			    case rpc:call(WorkerNode,App,ping,[],6000) of
+				{badrpc,Reason}->
+				    {error,["Failed to connect to application ",WorkerNode,App,Reason]};
+				pong->
+				    {ok,DeploymentInfo}
+			    end
+		    end
+	    end
+    end.

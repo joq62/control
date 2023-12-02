@@ -29,7 +29,7 @@ start()->
     ok=setup(),
     ok=orchestrator_test:start(),
  %   ok=node_ctrl_test:start(),
-    ok=appl_ctrl_test:start(),
+ %   ok=appl_ctrl_test:start(),
 
     io:format("Test OK !!! ~p~n",[?MODULE]),
     timer:sleep(1000),

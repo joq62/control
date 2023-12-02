@@ -64,6 +64,9 @@ orchestrator_start()->
      {node_info,'9_a@c50',"9_a","9_a","c50","a"}
     ]=NodeInfoList,
     
+    WhichAppl=[rpc:call(N#node_info.worker_node,application,which_applications,[],5000)||N<-NodeInfoList],
+    
+    io:format("WhichAppl ~p~n",[{WhichAppl,?MODULE,?LINE}]),
     ok.
 %%--------------------------------------------------------------------
 %% @doc
