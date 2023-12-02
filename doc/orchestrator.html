@@ -20,9 +20,7 @@
 <h2><a name="description">Description</a></h2>
    Data: Nodename,cookie, node, status(allocated,free,stopped)
 <h2><a name="index">Function Index</a></h2>
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#allocate-0">allocate/0</a></td><td>  
-Allocate the node with least num of running applications.</td></tr>
-<tr><td valign="top"><a href="#create_worker-2">create_worker/2</a></td><td>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#create_worker-2">create_worker/2</a></td><td>
   Create a worker with a node name = NodeName and node dir=NodeDir.</td></tr>
 <tr><td valign="top"><a href="#create_workers-0">create_workers/0</a></td><td>
   Create a worker with a node name = NodeName and node dir=NodeDir.</td></tr>
@@ -32,19 +30,12 @@ Allocate the node with least num of running applications.</td></tr>
 <tr><td valign="top"><a href="#ping-0">ping/0</a></td><td>.</td></tr>
 <tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>
   Starts the server.</td></tr>
+<tr><td valign="top"><a href="#start_orchestrate-0">start_orchestrate/0</a></td><td>  
+Allocate the node with least num of running applications.</td></tr>
 <tr><td valign="top"><a href="#stop-0">stop/0</a></td><td></td></tr>
 </table>
 
 <h2><a name="functions">Function Details</a></h2>
-
-<h3 class="function"><a name="allocate-0">allocate/0</a></h3>
-<div class="spec">
-<p><tt>allocate() -&gt; {NodeInfoRecord::term()} | {error, Error::term()}</tt><br></p>
-<p> </p>
-</div><p><p>  
-Allocate the node with least num of running applications</p>
- 
- </p>
 
 <h3 class="function"><a name="create_worker-2">create_worker/2</a></h3>
 <div class="spec">
@@ -94,6 +85,15 @@ Allocate the node with least num of running applications</p>
 <p> </p>
 </div><p>
   Starts the server</p>
+
+<h3 class="function"><a name="start_orchestrate-0">start_orchestrate/0</a></h3>
+<div class="spec">
+<p><tt>start_orchestrate() -&gt; ok | {error, Error::term()}</tt><br></p>
+<p> </p>
+</div><p><p>  
+Allocate the node with least num of running applications</p>
+ 
+ </p>
 
 <h3 class="function"><a name="stop-0">stop/0</a></h3>
 <div class="spec">

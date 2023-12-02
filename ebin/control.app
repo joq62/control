@@ -6,8 +6,8 @@
               {applications,[kernel,stdlib]},
               {env,[]},
               {modules,[appl_ctrl,control,control_app,control_provider_server,
-                        control_sup,deployment_info,lib_appl_ctrl,lib_control,
-                        lib_node_ctrl,lib_provider,node_ctrl,node_info,
+                        control_sup,lib_appl_ctrl,lib_control,lib_node_ctrl,
+                        lib_orchestrator,lib_provider,node_ctrl,node_info,
                         orchestrator,provider]},
               {licenses,["Apache-2.0"]},
               {links,[]}]}.

@@ -27,16 +27,16 @@
 %% 
 %% @end
 %%--------------------------------------------------------------------
-keyfind_deployment(worker_node,WantedNode,DeploymentList)->
-    NodeApplList=[{Deployment#deployment.node_info,
-		   Deployment#deployment.appl_info}||Deployment<-DeploymentList],
-    Result=case [#deployment{node_info=NodeInfo,
-			     appl_info=ApplInfo}||{NodeInfo,ApplInfo}<-NodeApplList,
-						  WantedNode=:=NodeInfo#node_info.worker_node] of
+keyfind_deployment(worker_node,WantedNode,DeploymentInfoList)->
+    NodeApplList=[{DeploymentInfo#deployment_info.node_info,
+		   DeploymentInfo#deployment_info.appl_info}||DeploymentInfo<-DeploymentInfoList],
+    Result=case [#deployment_info{node_info=NodeInfo,
+				  appl_info=ApplInfo}||{NodeInfo,ApplInfo}<-NodeApplList,
+						       WantedNode=:=NodeInfo#node_info.worker_node] of
 	       []->
 		   false;
-	       NewDeploymentList->
-		   NewDeploymentList
+	       NewDeploymentInfoList->
+		   NewDeploymentInfoList
 	   end,
     Result.
 

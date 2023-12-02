@@ -21,8 +21,6 @@
 %% API
 
 -export([
-	 init_new_worker/0,
-	 add_appl/2,
 	 load_appl/2,
 	 start_appl/1,
 	 stop_appl/1,
@@ -47,75 +45,52 @@
 % deploy_appl {AppleInfoRecord,NodeInfoRecord}
 -record(state, {
 		monitored_nodes,
-		deployments
+		deployment_info_list
 		
 	       }).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
-
 %%--------------------------------------------------------------------
 %% @doc
-%% init_new_worker, allocate, load and start infra appls
+%% load application   , it assumes that need infra applications are
+%% already laoded on the node
 %% @end
 %%--------------------------------------------------------------------
--spec add_appl(DeploymentInfra :: term(),ApplSpec :: string()) -> {ok,Deployment :: term()} | 
+-spec load_appl(NodeInfo :: term(),ApplSpec :: string()) -> {ok,DeployInfo :: term()} | 
 	  {error, Error :: term()}.
-
-add_appl(DeploymentInfra,ApplSpec) ->
-    gen_server:call(?SERVER, {add_appl,DeploymentInfra,ApplSpec},infinity).
-
-%%--------------------------------------------------------------------
-%% @doc
-%% adds a application to a worker that is initiated
-%% @end
-%%--------------------------------------------------------------------
--spec init_new_worker() -> {ok,Deployment :: term()} | 
-	  {error, Error :: term()}.
-
-init_new_worker() ->
-    gen_server:call(?SERVER, {init_new_worker},infinity).
-
-
-%%--------------------------------------------------------------------
-%% @doc
-%% load application   
-%% @end
-%%--------------------------------------------------------------------
--spec load_appl(NodeInfoRecord :: term(),ApplSpec :: string()) -> {ok,DeployInfoRecord :: term()} | 
-	  {error, Error :: term()}.
-load_appl(NodeInfoRecord,ApplSpec)->
-    gen_server:call(?SERVER, {load_appl,NodeInfoRecord,ApplSpec},infinity).
+load_appl(NodeInfo,ApplSpec)->
+    gen_server:call(?SERVER, {load_appl,NodeInfo,ApplSpec},infinity).
 %%--------------------------------------------------------------------
 %% @doc
 %%  application   
 %% @end
 %%--------------------------------------------------------------------
--spec start_appl(DeployInfoRecord :: term()) -> ok | 
+-spec start_appl(DeployInfo :: term()) -> ok | 
 	  {error, Error :: term()}.
-start_appl(DeployInfoRecord)->
-    gen_server:call(?SERVER, {start_appl,DeployInfoRecord},infinity).
+start_appl(DeployInfo)->
+    gen_server:call(?SERVER, {start_appl,DeployInfo},infinity).
 
 %%--------------------------------------------------------------------
 %% @doc
 %%  application   
 %% @end
 %%--------------------------------------------------------------------
--spec stop_appl(DeployInfoRecord :: term()) -> ok | 
+-spec stop_appl(DeployInfo :: term()) -> ok | 
 	  {error, Error :: term()}.
-stop_appl(DeployInfoRecord)->
-    gen_server:call(?SERVER, {stop_appl,DeployInfoRecord},infinity).
+stop_appl(DeployInfo)->
+    gen_server:call(?SERVER, {stop_appl,DeployInfo},infinity).
 
 %%--------------------------------------------------------------------
 %% @doc
 %%  application   
 %% @end
 %%--------------------------------------------------------------------
--spec unload_appl(DeployInfoRecord :: term()) -> ok | 
+-spec unload_appl(DeployInfo :: term()) -> ok | 
 	  {error, Error :: term()}.
-unload_appl(DeployInfoRecord)->
-    gen_server:call(?SERVER, {unload_appl,DeployInfoRecord},infinity).
+unload_appl(DeployInfo)->
+    gen_server:call(?SERVER, {unload_appl,DeployInfo},infinity).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -193,7 +168,7 @@ init([]) ->
     ?LOG_NOTICE("Server started ",[]),
     {ok, #state{
 	    monitored_nodes=[],
-	    deployments=[]
+	    deployment_info_list=[]
 	   }}.
 
 
@@ -214,47 +189,23 @@ init([]) ->
 	  {stop, Reason :: term(), NewState :: term()}.
 
 
-
-handle_call({init_new_worker}, _From, State) ->
-    Reply=case lib_appl_ctrl:init_new_worker() of
+handle_call({load_appl,NodeInfo,ApplSpec}, _From, State) ->
+    Reply=case lib_appl_ctrl:load_appl(NodeInfo,ApplSpec) of
 	      {error,Reason}->
 		  NewState=State,
 		  {error,Reason};
-	      {ok,DeploymentList}->
-		  NewState=State#state{deployments=lists:append(DeploymentList,State#state.deployments)},
-		  {ok,DeploymentList}
+	      {ok,DeploymentInfo}->
+		  NewState=State#state{deployment_info_list=[DeploymentInfo|State#state.deployment_info_list]},
+		  {ok,DeploymentInfo}
 	  end,
     {reply, Reply, NewState};
 
-handle_call({add_appl,DeploymentInfra,ApplSpec}, _From, State) ->
-    Reply=case lib_appl_ctrl:add_appl(DeploymentInfra,ApplSpec) of
-	      {error,Reason}->
-		  NewState=State,
-		  {error,Reason};
-	      {ok,Deployment}->
-		  NewState=State#state{deployments=[Deployment|State#state.deployments]},
-		  {ok,Deployment}
-	  end,
-    {reply, Reply, NewState};
-
-
-handle_call({load_appl,NodeInfoRecord,ApplSpec}, _From, State) ->
-    Reply=case lib_appl_ctrl:load_appl(NodeInfoRecord,ApplSpec) of
-	      {error,Reason}->
-		  NewState=State,
-		  {error,Reason};
-	      {ok,Deployment}->
-		  NewState=State#state{deployments=[Deployment|State#state.deployments]},
-		  {ok,Deployment}
-	  end,
-    {reply, Reply, NewState};
-
-handle_call({start_appl,Deployment}, _From, State) ->
-    Reply=case lists:member(Deployment,State#state.deployments) of
+handle_call({start_appl,DeploymentInfo}, _From, State) ->
+    Reply=case lists:member(DeploymentInfo,State#state.deployment_info_list) of
 	      false->
-		  {error,["Deployment doesnt exists",Deployment,?MODULE,?LINE]};
+		  {error,["DeploymentInfo doesnt exists",DeploymentInfo,?MODULE,?LINE]};
 	      true->
-		  case lib_appl_ctrl:start_appl(Deployment) of
+		  case lib_appl_ctrl:start_appl(DeploymentInfo) of
 		      {error,Reason}->
 			  {error,Reason};
 		      ok->
@@ -263,12 +214,12 @@ handle_call({start_appl,Deployment}, _From, State) ->
 	  end,
     {reply, Reply, State};
 
-handle_call({stop_appl,Deployment}, _From, State) ->
-    Reply=case lists:member(Deployment,State#state.deployments) of
+handle_call({stop_appl,DeploymentInfo}, _From, State) ->
+    Reply=case lists:member(DeploymentInfo,State#state.deployment_info_list) of
 	      false->
-		  {error,["Deployment doesnt exists",Deployment,?MODULE,?LINE]};
+		  {error,["DeploymentInfo doesnt exists",DeploymentInfo,?MODULE,?LINE]};
 	      true->
-		  case lib_appl_ctrl:stop_appl(Deployment) of
+		  case lib_appl_ctrl:stop_appl(DeploymentInfo) of
 		      {error,Reason}->
 			  {error,Reason};
 		      ok->
@@ -277,18 +228,18 @@ handle_call({stop_appl,Deployment}, _From, State) ->
 	  end,
     {reply, Reply, State};
 
-handle_call({unload_appl,Deployment}, _From, State) ->
-    Reply=case lists:member(Deployment,State#state.deployments) of
+handle_call({unload_appl,DeploymentInfo}, _From, State) ->
+    Reply=case lists:member(DeploymentInfo,State#state.deployment_info_list) of
 	      false->
 		  NewState=State,
-		  {error,["Deployment doesnt exists",Deployment,?MODULE,?LINE]};
+		  {error,["DeploymentInfo doesnt exists",DeploymentInfo,?MODULE,?LINE]};
 	      true->
-		  case lib_appl_ctrl:unload_appl(Deployment) of
+		  case lib_appl_ctrl:unload_appl(DeploymentInfo) of
 		      {error,Reason}->
 			  NewState=State,
 			  {error,Reason};
 		      ok->
-			  NewState=State#state{deployments=lists:delete(Deployment,State#state.deployments)},
+			  NewState=State#state{deployment_info_list=lists:delete(DeploymentInfo,State#state.deployment_info_list)},
 			  ok
 		  end
 	  end,
@@ -296,7 +247,7 @@ handle_call({unload_appl,Deployment}, _From, State) ->
 
 
 handle_call({loaded_appls}, _From, State) ->
-    Reply=[Deployment#deployment.appl_info||Deployment<-State#state.deployments],
+    Reply=[DeploymentInfo#deployment_info.appl_info||DeploymentInfo<-State#state.deployment_info_list],
     {reply, Reply, State};
 
 handle_call({running_appls}, _From, State) ->
@@ -305,7 +256,7 @@ handle_call({running_appls}, _From, State) ->
 
 handle_call({is_alive,App,WorkerNode}, _From, State) ->
     Reply=case rpc:call(WorkerNode,App,ping,[],5000) of
-	      {badrpc,Reason}->
+	      {badrpc,_Reason}->
 		  false;
 	      pong->
 		  true;
@@ -352,19 +303,19 @@ handle_cast(UnMatchedSignal, State) ->
 %% Remove Deployment from deployment list
 %% 
 
-handle_info({nodedown,WorkerNode}, State) ->
-    io:format("nodedown ~p~n",[{WorkerNode,?MODULE,?LINE}]),
-    erlang:monitor_node(WorkerNode,false),
-    case deployment_info:keyfind(worker_node,WorkerNode,State#state.deployments) of
+handle_info({nodedown,Node}, State) ->
+    io:format("nodedown ~p~n",[{Node,?MODULE,?LINE}]),
+    erlang:monitor_node(Node,false),
+    case deployment_info:keyfind(worker_node,Node,State#state.deployment_info_list) of
 	false->
-	    io:format("error ~p~n",[{"eexists WorkerNode ",WorkerNode,?MODULE,?LINE}]),
-	    NewState=State#state{monitored_nodes=lists:delete(WorkerNode,State#state.monitored_nodes)},
-	    {error,["eexists WorkerNode ",WorkerNode,?MODULE,?LINE]};
+	    io:format("error ~p~n",[{"eexists Node ",Node,?MODULE,?LINE}]),
+	    NewState=State#state{monitored_nodes=lists:delete(Node,State#state.monitored_nodes)},
+	    {error,["eexists rNode ",Node,?MODULE,?LINE]};
 	DeploymentsForWorkerNode->
 	    % Remove deployments
-	    WorkerListRemoved=[Deployment||Deployment<-State#state.deployments,
-					   false=:=lists:member(Deployment,DeploymentsForWorkerNode)],
-	    NewState=State#state{deployments=WorkerListRemoved}
+	    RemovedDeploymentInfoList=[DeploymentInfo||DeploymentInfo<-State#state.deployment_info_list,
+					   false=:=lists:member(DeploymentInfo,DeploymentsForWorkerNode)],
+	    NewState=State#state{deployment_info_list=RemovedDeploymentInfoList}
 	    
     end,
     {noreply, NewState};

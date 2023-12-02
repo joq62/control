@@ -24,11 +24,10 @@
 
 %% API
 -export([
-%	 init_orchestrate/0,
+	 start_orchestrate/0,
 	 create_workers/0,
 	 create_worker/2,
-	 delete_worker/1,
-	 allocate/0
+	 delete_worker/1
 	]).
 
 %% admin
@@ -51,12 +50,8 @@
 -define(SERVER, ?MODULE).
 		     
 -record(state, {
-		worker_list,
-		worker_info,
-		num_workers,
-		hostname,
-		cookie_str
-
+		deployments
+		
 	       }).
 
 %%%===================================================================
@@ -70,10 +65,10 @@
 %% 
 %% @end
 %%--------------------------------------------------------------------
--spec  allocate() -> {NodeInfoRecord :: term()} | 
+-spec  start_orchestrate() -> ok | 
 	  {error, Error :: term()}.
-allocate() ->
-    gen_server:call(?SERVER,{allocate},infinity).
+start_orchestrate() ->
+    gen_server:call(?SERVER,{start_orchestrate},infinity).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -173,22 +168,11 @@ stop()-> gen_server:stop(?SERVER).
 	  ignore.
 
 init([]) ->
-  
-    {ok,HostName}=net:gethostname(),
-    {ok,NumWorkers}=etcd_infra:get_num_workers(?InfraSpec,HostName),
-    {ok,CookieStr}=etcd_infra:get_cookie_str(?InfraSpec),
-    ListOfNodeInfo=lib_node_ctrl:create_node_info(NumWorkers,HostName,CookieStr),
-    
-  %  io:format("ListOfNodeInfo ~p~n",[{ListOfNodeInfo,?MODULE,?LINE}]),
-    
+      
      
     ?LOG_NOTICE("Server started ",[node()]),
     {ok, #state{
-	    worker_list=[],
-	    worker_info=ListOfNodeInfo,
-	    num_workers=NumWorkers,
-	    hostname=HostName,
-	    cookie_str=CookieStr
+	    deployments=[]
 	    
 	   }}.
 
@@ -209,78 +193,24 @@ init([]) ->
 	  {stop, Reason :: term(), NewState :: term()}.
 
 
-
-
-
-handle_call({create_workers}, _From, State) ->
-    Reply=case lib_node_ctrl:create_workers(State#state.worker_info,?InfraAppls) of
-	      {error,Reason}->
-		  NewState=State,
-		  {error,Reason};
-	      {ok,Deployments}->
-		  io:format("Deployments ~p~n",[{Deployments,?MODULE,?LINE}]),
-		  NewWorkerList=lists:append(Deployments,State#state.worker_list),
-		  NewState=State#state{worker_list=NewWorkerList},
-		  {ok,Deployments}
-	  end,
-    {reply, Reply, NewState};
-
-handle_call({create_worker,NodeName,WorkerDir}, _From, State) ->
-    WorkerNode=list_to_atom(NodeName++"@"++State#state.hostname),    
-    NodeInfoRecord=#node_info{worker_node=WorkerNode,
-			      worker_dir=WorkerDir,
-			      nodename=NodeName,
-			      hostname=State#state.hostname,
-			      cookie_str=State#state.cookie_str},
+handle_call({start_orchestrate}, _From, State) ->
     
-    Reply=case lib_node_ctrl:create_worker(NodeInfoRecord,?InfraAppls) of
-	      {error,Reason}->
-		  NewState=State,
-		  {error,Reason};
-	      {ok,DeploymentList}->
-		  io:format("DeploymentList ~p~n",[{DeploymentList,?MODULE,?LINE}]),
-		  NewWorkerList=lists:append([[Deployment|State#state.worker_list]||Deployment<-DeploymentList]),
-		  io:format("NewWorkerList ~p~n",[{NewWorkerList,?MODULE,?LINE}]),
-		  NewState=State#state{worker_list=NewWorkerList},
-		  {ok,DeploymentList}
-	  end,
-    
+    Reply = case lib_orchestrator:create_workers() of
+		{error,Reason}->
+		    NewState=State,
+		    {error,Reason};
+		{ok,RunningWorkers}->
+		    case lib_orchestrator:load_start_infra(?InfraAppls,RunningWorkers) of
+			{error,Reason}->
+			    NewState=State,
+			    {error,Reason};
+			{ok,InfraDeployments}->
+			    NewDeployments=lists:append(InfraDeployments,State#state.deployments),
+			    NewState=State#state{deployments=NewDeployments},
+			    {ok,RunningWorkers}
+		    end
+	    end,
     {reply, Reply, NewState};
-
-handle_call({delete_worker,Deployment}, _From, State) ->
-    io:format("Deployment ~p~n",[{Deployment,?MODULE,?LINE}]),
-    NodeInfoRecord=Deployment#deployment.node_info,
-    Reply=case node_info:find(Deployment,State#state.worker_list) of
-	      false->
-		  NewState=State,
-		  {error,["NodeInfoRecord doesnt exists in worker_list",NodeInfoRecord,State#state.worker_list]};
-	      DeploymentWanted->
-		  NodeInfo=Deployment#deployment.node_info,
-		  lib_node_ctrl:delete_worker(NodeInfo),
-		  NewWorkerList=lists:append(lists:delete(DeploymentWanted,State#state.worker_list)),
-		  NewState=State#state{worker_list=NewWorkerList},
-		  ok
-	  end,
-
-    {reply, Reply, NewState};
-
-
-handle_call({allocate}, _From, State) ->
-    Reply=case lib_node_ctrl:allocate(State#state.worker_list) of
-	      {error,Reason}->
-		  NewState=State,
-		  {error,Reason};
-	      {ok,Deployment,NewWorkerList}->
-		  io:format("NewWorkerList ~p~n",[{NewWorkerList,?MODULE,?LINE}]),
-		  NewState=State#state{worker_list=NewWorkerList},
-		  {ok,Deployment}
-	  end,
-    
-    {reply, Reply, NewState};
-
-handle_call({worker_list}, _From, State) ->
-    Reply=State#state.worker_list,
-    {reply, Reply, State};
 
 handle_call({ping}, _From, State) ->
     Reply=pong,
@@ -319,28 +249,7 @@ handle_cast(UnMatchedSignal, State) ->
 
 handle_info({nodedown,Node}, State) ->
     io:format("nodedown,Node  ~p~n",[{Node,?MODULE,?LINE}]),
-    case node_info:keyfind_deployment(worker_node,Node,State#state.worker_list) of
-	false->
-	    io:format("false ~p~n",[{?MODULE,?LINE}]),
-	    NewState=State,
-	    {error,["Node doesnt exist i worker_list ",Node,?MODULE,?LINE]};
-	ListOfDeployments->
-	    io:format("ListOfDeployments  ~p~n",[{ListOfDeployments,?MODULE,?LINE}]),
-	    [Deployment|_]=ListOfDeployments,
-	 
-	    NodeInfoRecord=Deployment#deployment.node_info,
-	    case lib_node_ctrl:create_worker(NodeInfoRecord,?InfraAppls) of
-		{error,Reason}->
-		    NewState=State,
-		    {error,Reason};
-		{ok,DeploymentList}->
-   		    io:format("Restarted node  DeploymentList ~p~n",[{DeploymentList,?MODULE,?LINE}]),
-		    L1=lists:append([lists:delete(NodeInfoRecord,State#state.worker_list)||Deployment<-DeploymentList]),
-		    NewWorkerList=lists:append([[Deployment|L1]||Deployment<-DeploymentList]),
-		    NewState=State#state{worker_list=NewWorkerList}
-			
-	    end
-    end,
+    NewState=State,
     {noreply, NewState};
 
 

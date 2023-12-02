@@ -11,15 +11,12 @@
 
 -include("node.hrl").
 -include("appl.hrl").
--include("infra_appls.hrl").
+% -include("infra_appls.hrl").
 
 
 
 %% API
 -export([
-	 init_new_worker/0,
-	 add_appl/2,
-
 	 load_appl/2,
 	 unload_appl/1,
 	 start_appl/1,
@@ -34,62 +31,7 @@
 %% 
 %% @end
 %%--------------------------------------------------------------------
-add_appl(Deployment,ApplSpec)->
-    NodeInfo=Deployment#deployment.node_info,
-    Result=case load_appl(NodeInfo,ApplSpec) of
-	       {error,Reason}->
-		   {error,Reason};   
-	       {ok,DeploymentAppl}->
-		   case start_appl(DeploymentAppl) of
-		       {error,Reason}->
-			   {error,Reason};   
-		       ok->
-			   {ok,DeploymentAppl}
-		   end
-	   end,
-    Result.
-
-%%--------------------------------------------------------------------
-%% @doc
-%% 
-%% @end
-%%--------------------------------------------------------------------
-init_new_worker()->
-    {ok,NodeInfo}=node_ctrl:allocate(),
-    load_start(?InfraAppls,NodeInfo,[]).   
-
-load_start([],_NodeInfo,Acc)->
-    case [{error,Reason}||{error,Reason}<-Acc] of
-	[]->
-	    Deployments=[Deployment||{ok,Deployment}<-Acc],
-	    {ok,Deployments};
-	ErrorList->
-	    {error,["Failed to init new worker",ErrorList,?MODULE,?LINE]}
-    end;
-load_start([ApplSpec|T],NodeInfo,Acc) ->
-    Result=case load_appl(NodeInfo,ApplSpec) of
-	       {error,Reason}->
-		   {error,Reason};
-	       {ok,ApplInfoRecord}->
-		   Deployment=#deployment{node_info=NodeInfo,appl_info=ApplInfoRecord},
-		   case start_appl(Deployment) of
-		       {error,Reason}->
-			   {error,Reason};
-		       ok->
-			   {ok,Deployment}
-		   end
-	   end,
-    load_start(T,NodeInfo,[Result|Acc]).
-    
-	    
-
-    
-%%--------------------------------------------------------------------
-%% @doc
-%% 
-%% @end
-%%--------------------------------------------------------------------
-load_appl(NodeInfoRecord,ApplSpec)->
+load_appl(NodeInfo,ApplSpec)->
     Result=case etcd_application:get_app(ApplSpec) of
 	       {error,Reason}->
 		   {error,[ApplSpec,Reason]};
@@ -98,19 +40,19 @@ load_appl(NodeInfoRecord,ApplSpec)->
 		       {error,Reason}->
 			   {error,[ApplSpec,Reason]};
 		       {ok,GitPath}->
-			   WorkerNode=NodeInfoRecord#node_info.worker_node,
-			   WorkerDir=NodeInfoRecord#node_info.worker_dir,
+			   WorkerNode=NodeInfo#node_info.worker_node,
+			   WorkerDir=NodeInfo#node_info.worker_dir,
 			   case load(WorkerNode,WorkerDir,ApplSpec,App,GitPath) of
 			       {error,Reason}->
 				   {error,[ApplSpec,Reason]};
 			       {ok,ApplDir}->
 				   erlang:monitor_node(WorkerNode,true),
-				   ApplInfoRecord=#appl_info{appl_spec=ApplSpec,
+				   ApplInfo=#appl_info{appl_spec=ApplSpec,
 							     appl_dir=ApplDir},
 				   
-				   {ok,#deployment{
-					  node_info=NodeInfoRecord,
-					  appl_info=ApplInfoRecord}}
+				   {ok,#deployment_info{
+					  node_info=NodeInfo,
+					  appl_info=ApplInfo}}
 			   end
 		   end
 	   end,
@@ -121,11 +63,11 @@ load_appl(NodeInfoRecord,ApplSpec)->
 %% 
 %% @end
 %%--------------------------------------------------------------------
-unload_appl(Deployment)->
-    NodeInfo=Deployment#deployment.node_info,
+unload_appl(DeploymentInfo)->
+    NodeInfo=DeploymentInfo#deployment_info.node_info,
     WorkerNode=NodeInfo#node_info.worker_node,
     
-    ApplInfo=Deployment#deployment.appl_info,
+    ApplInfo=DeploymentInfo#deployment_info.appl_info,
     ApplSpec=ApplInfo#appl_info.appl_spec,
     Result=case etcd_application:get_app(ApplSpec) of
 	       {error,Reason}->
@@ -155,12 +97,12 @@ unload_appl(Deployment)->
 %% 
 %% @end
 %%--------------------------------------------------------------------
-start_appl(Deployment)->
+start_appl(DeploymentInfo)->
    
-    NodeInfo=Deployment#deployment.node_info,
+    NodeInfo=DeploymentInfo#deployment_info.node_info,
     WorkerNode=NodeInfo#node_info.worker_node,
     
-    ApplInfo=Deployment#deployment.appl_info,
+    ApplInfo=DeploymentInfo#deployment_info.appl_info,
     ApplSpec=ApplInfo#appl_info.appl_spec,
 
     Result=case etcd_application:get_app(ApplSpec) of
@@ -183,11 +125,11 @@ start_appl(Deployment)->
 %% 
 %% @end
 %%--------------------------------------------------------------------
-stop_appl(Deployment)->
-    NodeInfo=Deployment#deployment.node_info,
+stop_appl(DeploymentInfo)->
+    NodeInfo=DeploymentInfo#deployment_info.node_info,
     WorkerNode=NodeInfo#node_info.worker_node,
     
-    ApplInfo=Deployment#deployment.appl_info,
+    ApplInfo=DeploymentInfo#deployment_info.appl_info,
     ApplSpec=ApplInfo#appl_info.appl_spec,
     ApplicationDir=ApplInfo#appl_info.appl_dir,
     Result=case etcd_application:get_app(ApplSpec) of

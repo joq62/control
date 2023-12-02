@@ -3,7 +3,7 @@
 		   appl_dir
 		  }).
 
--record(deployment,{
-		   node_info,
-		   appl_info
-		  }).
+-record(deployment_info,{
+			 node_info,
+			 appl_info
+			}).

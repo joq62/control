@@ -19,14 +19,11 @@
 <h2><a name="description">Description</a></h2>
   
 <h2><a name="index">Function Index</a></h2>
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_appl-2">add_appl/2</a></td><td>
-  init_new_worker, allocate, load and start infra appls.</td></tr>
-<tr><td valign="top"><a href="#init_new_worker-0">init_new_worker/0</a></td><td>
-  adds a application to a worker that is initiated.</td></tr>
-<tr><td valign="top"><a href="#is_alive-2">is_alive/2</a></td><td>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#is_alive-2">is_alive/2</a></td><td>
   Get all information related to host HostName.</td></tr>
 <tr><td valign="top"><a href="#load_appl-2">load_appl/2</a></td><td>
-  load application.</td></tr>
+  load application   , it assumes that need infra applications are
+  already laoded on the node.</td></tr>
 <tr><td valign="top"><a href="#loaded_appls-0">loaded_appls/0</a></td><td>
   Get all information related to host HostName.</td></tr>
 <tr><td valign="top"><a href="#ping-0">ping/0</a></td><td>.</td></tr>
@@ -45,20 +42,6 @@
 
 <h2><a name="functions">Function Details</a></h2>
 
-<h3 class="function"><a name="add_appl-2">add_appl/2</a></h3>
-<div class="spec">
-<p><tt>add_appl(DeploymentInfra::term(), ApplSpec::string()) -&gt; {ok, Deployment::term()} | {error, Error::term()}</tt><br></p>
-<p> </p>
-</div><p>
-  init_new_worker, allocate, load and start infra appls</p>
-
-<h3 class="function"><a name="init_new_worker-0">init_new_worker/0</a></h3>
-<div class="spec">
-<p><tt>init_new_worker() -&gt; {ok, Deployment::term()} | {error, Error::term()}</tt><br></p>
-<p> </p>
-</div><p>
-  adds a application to a worker that is initiated</p>
-
 <h3 class="function"><a name="is_alive-2">is_alive/2</a></h3>
 <div class="spec">
 <p><tt>is_alive(App::atom(), WorkerNode::node()) -&gt; IsDeployed::boolean() | {error, Error::term()}</tt><br></p>
@@ -68,10 +51,11 @@
 
 <h3 class="function"><a name="load_appl-2">load_appl/2</a></h3>
 <div class="spec">
-<p><tt>load_appl(NodeInfoRecord::term(), ApplSpec::string()) -&gt; {ok, DeployInfoRecord::term()} | {error, Error::term()}</tt><br></p>
+<p><tt>load_appl(NodeInfo::term(), ApplSpec::string()) -&gt; {ok, DeployInfo::term()} | {error, Error::term()}</tt><br></p>
 <p> </p>
 </div><p>
-  load application</p>
+  load application   , it assumes that need infra applications are
+  already laoded on the node</p>
 
 <h3 class="function"><a name="loaded_appls-0">loaded_appls/0</a></h3>
 <div class="spec">
@@ -96,7 +80,7 @@
 
 <h3 class="function"><a name="start_appl-1">start_appl/1</a></h3>
 <div class="spec">
-<p><tt>start_appl(DeployInfoRecord::term()) -&gt; ok | {error, Error::term()}</tt><br></p>
+<p><tt>start_appl(DeployInfo::term()) -&gt; ok | {error, Error::term()}</tt><br></p>
 <p> </p>
 </div><p>
    application</p>
@@ -116,14 +100,14 @@
 
 <h3 class="function"><a name="stop_appl-1">stop_appl/1</a></h3>
 <div class="spec">
-<p><tt>stop_appl(DeployInfoRecord::term()) -&gt; ok | {error, Error::term()}</tt><br></p>
+<p><tt>stop_appl(DeployInfo::term()) -&gt; ok | {error, Error::term()}</tt><br></p>
 <p> </p>
 </div><p>
    application</p>
 
 <h3 class="function"><a name="unload_appl-1">unload_appl/1</a></h3>
 <div class="spec">
-<p><tt>unload_appl(DeployInfoRecord::term()) -&gt; ok | {error, Error::term()}</tt><br></p>
+<p><tt>unload_appl(DeployInfo::term()) -&gt; ok | {error, Error::term()}</tt><br></p>
 <p> </p>
 </div><p>
    application</p>
