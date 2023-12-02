@@ -28,18 +28,12 @@ start()->
     
     ok=setup(),
 
-   ok=node_ctrl_test:start(),
-    
-  %   ok=appl_ctrl_test:start(),
+    ok=node_ctrl_test:start(),
+  %  ok=appl_ctrl_test:start(),
 
-    
-%    ok=node_test:start(),
-%    ok=provider_test:start(),
-%    ok=control_test:start(),
- 
     io:format("Test OK !!! ~p~n",[?MODULE]),
- %   timer:sleep(3000),
- %   init:stop(),
+    timer:sleep(1000),
+    init:stop(),
     ok.
 
 %% --------------------------------------------------------------------

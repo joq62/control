@@ -452,23 +452,7 @@ handle_info(timeout, State) ->
     rd:trade_resources(),
     ok=rd:detect_target_resources(?TargetTypes,?MaxDetectTime),
    
-    
-    
-    %%--------------------  State Connected -------------------
-    
-    %% 3. create workes for the host
-    {ok,Deployments}=node_ctrl:create_workers(),
-        
-    %% Ensure connected
- %   NodeInfos=[Deployment#deployment.node_info||Deployment<-Deployments],
-    
- %  [rpc:call(NodeInfo#node_info.worker_node,net_adm,ping,[N2],5000)||NodeInfo<-NodeInfos,
-%								     N2<-ConnecNodes],
-    
-    %%--------------------  State Worker running  -------------------
-    
-    NewState=State#state{deployments=Deployments},
-    {noreply, NewState};
+    {noreply, State};
 
 handle_info(Info, State) ->
     glurk=Info,

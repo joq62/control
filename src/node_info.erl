@@ -10,10 +10,13 @@
 
 
 -include("node.hrl").
+-include("appl.hrl").
+
+
 %% API
 -export([
 	find/2,
-	 keyfind/3
+	 keyfind_deployment/3
 	]).
 
 %%%===================================================================
@@ -24,15 +27,18 @@
 %% 
 %% @end
 %%--------------------------------------------------------------------
-keyfind(worker_node,WantedNode,NodeInfoRecordList)->
-    R=case [NIR||NIR<-NodeInfoRecordList,
-		 WantedNode==NIR#node_info.worker_node] of
-	  []->
-	      false;
-	  [NIR]->
-	      NIR
-      end,
-    R.
+keyfind_deployment(worker_node,WantedNode,DeploymentList)->
+    NodeApplList=[{Deployment#deployment.node_info,
+		   Deployment#deployment.appl_info}||Deployment<-DeploymentList],
+    Result=case [#deployment{node_info=NodeInfo,
+			     appl_info=ApplInfo}||{NodeInfo,ApplInfo}<-NodeApplList,
+						  WantedNode=:=NodeInfo#node_info.worker_node] of
+	       []->
+		   false;
+	       NewDeploymentList->
+		   NewDeploymentList
+	   end,
+    Result.
 
 
 %%--------------------------------------------------------------------
@@ -40,18 +46,29 @@ keyfind(worker_node,WantedNode,NodeInfoRecordList)->
 %% 
 %% @end
 %%--------------------------------------------------------------------
-find(_NodeInfoRecord,[])->
+find([],_Node)->
     false;
-find(NodeInfoRecord,NodeInfoRecordList)->
-    R=case [NIR||NIR<-NodeInfoRecordList,
-		 NIR==NodeInfoRecord] of
-	  []->
-	      false;
-	  [NIR]->
-	      NIR
-      end,
-    R.
+find(RunningWorkerNodes,Node)->
+    find(RunningWorkerNodes,Node,[]).
 
+
+find([],_Node,Acc)->
+    case Acc of
+	[]->
+	    false;
+	[NodeInfo]->
+	    NodeInfo
+    end;
+find([NodeInfo|T],Node,Acc)->
+    if 
+	Node=:=NodeInfo#node_info.worker_node ->
+	    NewAcc=[NodeInfo],
+	    NewT=[];
+	true->
+	    NewAcc=Acc,
+	    NewT=T
+    end,
+    find(NewT,Node,NewAcc).
 
 %%%===================================================================
 %%% Internal functions

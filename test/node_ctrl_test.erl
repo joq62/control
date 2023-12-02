@@ -30,7 +30,7 @@ start()->
   
     ok=setup(),
     ok=check_nodes_init(),
- %   ok=test_0(),
+    ok=kill_restart_node(),
 
 
     io:format("Test OK !!! ~p~n",[?MODULE]),
@@ -47,20 +47,59 @@ start()->
 %% 
 %% @end
 %%--------------------------------------------------------------------
+kill_restart_node()->
+    io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
+    
+    %% Check correct creation of NodeIfo and create_worker
+    NodeInfoList=lists:sort(node_ctrl:node_info_list()),
+    [
+     {node_info,'1_a@c50',"1_a","1_a","c50","a"},
+     {node_info,'2_a@c50',"2_a","2_a","c50","a"},
+     {node_info,'3_a@c50',"3_a","3_a","c50","a"},
+     {node_info,'4_a@c50',"4_a","4_a","c50","a"},
+     {node_info,'5_a@c50',"5_a","5_a","c50","a"},
+     {node_info,'6_a@c50',"6_a","6_a","c50","a"},
+     {node_info,'7_a@c50',"7_a","7_a","c50","a"},
+     {node_info,'8_a@c50',"8_a","8_a","c50","a"},
+     {node_info,'9_a@c50',"9_a","9_a","c50","a"}
+    ]=NodeInfoList,
+    NodeInfoList=lists:sort(node_ctrl:running_worker_nodes()),
+    
+    %% killl '3_a@c50'
+   % rpc:call('3_a@c50',init,stop,[],5000),
+    slave:stop('3_a@c50'),
+    pang=net_adm:ping('3_a@c50'),
+    timer:sleep(100),
+    pong=net_adm:ping('3_a@c50'),
+    NodeInfoList=lists:sort(node_ctrl:running_worker_nodes()),
+  %  NodeInfoList=node_ctrl:running_worker_nodes(),
+    ok.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% 
+%% @end
+%%--------------------------------------------------------------------
 check_nodes_init()->
     io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
-
-    Deployments=lists:sort(node_ctrl:worker_list()),
-    io:format("Deployments ~p~n",[{Deployments,?MODULE,?LINE}]),
     
-    [Deployment|_]=Deployments,
-    NodeInfo=Deployment#deployment.node_info,
-    WorkerNode=NodeInfo#node_info.worker_node,
-    slave:stop(WorkerNode),
-    pang=net_adm:ping(WorkerNode),
-    timer:sleep(2000),
-    pang=net_adm:ping(WorkerNode),
+    %% Check correct creation of NodeIfo and create_worker
+    NodeInfoList=lists:sort(node_ctrl:node_info_list()),
+    [
+     {node_info,'1_a@c50',"1_a","1_a","c50","a"},
+     {node_info,'2_a@c50',"2_a","2_a","c50","a"},
+     {node_info,'3_a@c50',"3_a","3_a","c50","a"},
+     {node_info,'4_a@c50',"4_a","4_a","c50","a"},
+     {node_info,'5_a@c50',"5_a","5_a","c50","a"},
+     {node_info,'6_a@c50',"6_a","6_a","c50","a"},
+     {node_info,'7_a@c50',"7_a","7_a","c50","a"},
+     {node_info,'8_a@c50',"8_a","8_a","c50","a"},
+     {node_info,'9_a@c50',"9_a","9_a","c50","a"}
+    ]=NodeInfoList,
+    StartResult=[node_ctrl:create_worker(N#node_info.nodename,N#node_info.worker_dir)||N<-NodeInfoList],
+    NodeInfoList=lists:sort([N||{ok,N}<-StartResult]),
     
+    NodeInfoList=lists:sort(node_ctrl:running_worker_nodes()),
     
     ok.
 

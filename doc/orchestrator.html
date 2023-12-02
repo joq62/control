@@ -20,114 +20,59 @@
 <h2><a name="description">Description</a></h2>
    Data: Nodename,cookie, node, status(allocated,free,stopped)
 <h2><a name="index">Function Index</a></h2>
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#allocate-0">allocate/0</a></td><td>
-  Get all information related to host HostName.</td></tr>
-<tr><td valign="top"><a href="#create_start_node-2">create_start_node/2</a></td><td>
-  Get all information related to host HostName.</td></tr>
-<tr><td valign="top"><a href="#dbg_get_state-0">dbg_get_state/0</a></td><td>.</td></tr>
-<tr><td valign="top"><a href="#free-1">free/1</a></td><td>
-  Get all information related to host HostName.</td></tr>
-<tr><td valign="top"><a href="#get_allocated-0">get_allocated/0</a></td><td>
-  Get all information related to host HostName.</td></tr>
-<tr><td valign="top"><a href="#get_deleted-0">get_deleted/0</a></td><td>
-  Get all information related to host HostName.</td></tr>
-<tr><td valign="top"><a href="#get_free-0">get_free/0</a></td><td>
-  Get all information related to host HostName.</td></tr>
-<tr><td valign="top"><a href="#get_not_created-0">get_not_created/0</a></td><td>
-  Get all information related to host HostName.</td></tr>
-<tr><td valign="top"><a href="#get_wanted_state-0">get_wanted_state/0</a></td><td>
-  Get all information related to host HostName.</td></tr>
-<tr><td valign="top"><a href="#is_alive-1">is_alive/1</a></td><td>
-  Get all information related to host HostName.</td></tr>
-<tr><td valign="top"><a href="#is_wanted_state-0">is_wanted_state/0</a></td><td>
-  Get all information related to host HostName.</td></tr>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#allocate-0">allocate/0</a></td><td>  
+Allocate the node with least num of running applications.</td></tr>
+<tr><td valign="top"><a href="#create_worker-2">create_worker/2</a></td><td>
+  Create a worker with a node name = NodeName and node dir=NodeDir.</td></tr>
+<tr><td valign="top"><a href="#create_workers-0">create_workers/0</a></td><td>
+  Create a worker with a node name = NodeName and node dir=NodeDir.</td></tr>
+<tr><td valign="top"><a href="#delete_worker-1">delete_worker/1</a></td><td>
+  Worker vm is stopped and worker dir is deleted.</td></tr>
 <tr><td valign="top"><a href="#kill-0">kill/0</a></td><td>.</td></tr>
 <tr><td valign="top"><a href="#ping-0">ping/0</a></td><td>.</td></tr>
 <tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>
   Starts the server.</td></tr>
 <tr><td valign="top"><a href="#stop-0">stop/0</a></td><td></td></tr>
-<tr><td valign="top"><a href="#stop_delete_node-1">stop_delete_node/1</a></td><td>
-  Get all information related to host HostName.</td></tr>
 </table>
 
 <h2><a name="functions">Function Details</a></h2>
 
 <h3 class="function"><a name="allocate-0">allocate/0</a></h3>
 <div class="spec">
-<p><tt>allocate() -&gt; {ok, Id::integer(), Node::node(), NodeDir::string()} | {error, Reason::term()}</tt><br></p>
+<p><tt>allocate() -&gt; {NodeInfoRecord::term()} | {error, Error::term()}</tt><br></p>
 <p> </p>
-</div><p>
-  Get all information related to host HostName</p>
-
-<h3 class="function"><a name="create_start_node-2">create_start_node/2</a></h3>
-<div class="spec">
-<p><tt>create_start_node(NodeName::string(), NodeDir::string()) -&gt; {ok, ProviderNode::node(), NodeDir::string()} | {error, Error::term()}</tt><br></p>
-<p> </p>
-</div><p>
-  Get all information related to host HostName</p>
-
-<h3 class="function"><a name="dbg_get_state-0">dbg_get_state/0</a></h3>
-<div class="spec">
-<p><tt>dbg_get_state() -&gt; any()</tt></p>
-<p> </p>
-</div><p>
+</div><p><p>  
+Allocate the node with least num of running applications</p>
+ 
  </p>
 
-<h3 class="function"><a name="free-1">free/1</a></h3>
+<h3 class="function"><a name="create_worker-2">create_worker/2</a></h3>
 <div class="spec">
-<p><tt>free(Id::integer()) -&gt; ok | {error, Reason::term()}</tt><br></p>
+<p><tt>create_worker(NodeName::string(), NodeDir::string()) -&gt; {ok, Node::node()} | {error, Error::term()}</tt><br></p>
 <p> </p>
 </div><p>
-  Get all information related to host HostName</p>
+  Create a worker with a node name = NodeName and node dir=NodeDir. It's implict tha
+  the worker starts at current host and has the same cookie.
+  If the worker exists it will be killed and the dir will be deleted
+ </p>
 
-<h3 class="function"><a name="get_allocated-0">get_allocated/0</a></h3>
+<h3 class="function"><a name="create_workers-0">create_workers/0</a></h3>
 <div class="spec">
-<p><tt>get_allocated() -&gt; ListOfAllocatedNodeRecords::term()</tt><br></p>
+<p><tt>create_workers() -&gt; {ok, ListOfWorkers::term()} | {error, Error::term()}</tt><br></p>
 <p> </p>
 </div><p>
-  Get all information related to host HostName</p>
+  Create a worker with a node name = NodeName and node dir=NodeDir. It's implict tha
+  the worker starts at current host and has the same cookie.
+  If the worker exists it will be killed and the dir will be deleted
+ </p>
 
-<h3 class="function"><a name="get_deleted-0">get_deleted/0</a></h3>
+<h3 class="function"><a name="delete_worker-1">delete_worker/1</a></h3>
 <div class="spec">
-<p><tt>get_deleted() -&gt; ListOfDeletedNodeRecords::term()</tt><br></p>
+<p><tt>delete_worker(NodeName::string()) -&gt; {ok, Node::node()} | {error, Error::term()}</tt><br></p>
 <p> </p>
 </div><p>
-  Get all information related to host HostName</p>
-
-<h3 class="function"><a name="get_free-0">get_free/0</a></h3>
-<div class="spec">
-<p><tt>get_free() -&gt; ListOfFreeNodeRecords::term()</tt><br></p>
-<p> </p>
-</div><p>
-  Get all information related to host HostName</p>
-
-<h3 class="function"><a name="get_not_created-0">get_not_created/0</a></h3>
-<div class="spec">
-<p><tt>get_not_created() -&gt; ListOfNotCreatedNodeRecords::term()</tt><br></p>
-<p> </p>
-</div><p>
-  Get all information related to host HostName</p>
-
-<h3 class="function"><a name="get_wanted_state-0">get_wanted_state/0</a></h3>
-<div class="spec">
-<p><tt>get_wanted_state() -&gt; WantedState::term()</tt><br></p>
-<p> </p>
-</div><p>
-  Get all information related to host HostName</p>
-
-<h3 class="function"><a name="is_alive-1">is_alive/1</a></h3>
-<div class="spec">
-<p><tt>is_alive(DeploymentRecord::term()) -&gt; IsDeployed::boolean() | {error, Error::term()}</tt><br></p>
-<p> </p>
-</div><p>
-  Get all information related to host HostName</p>
-
-<h3 class="function"><a name="is_wanted_state-0">is_wanted_state/0</a></h3>
-<div class="spec">
-<p><tt>is_wanted_state() -&gt; true | {false, WhyNot::term()}</tt><br></p>
-<p> </p>
-</div><p>
-  Get all information related to host HostName</p>
+  Worker vm is stopped and worker dir is deleted
+ </p>
 
 <h3 class="function"><a name="kill-0">kill/0</a></h3>
 <div class="spec">
@@ -155,13 +100,6 @@
 <p><tt>stop() -&gt; any()</tt></p>
 <p> </p>
 </div>
-
-<h3 class="function"><a name="stop_delete_node-1">stop_delete_node/1</a></h3>
-<div class="spec">
-<p><tt>stop_delete_node(ProviderNode::atom()) -&gt; ok | {error, Error::term()}</tt><br></p>
-<p> </p>
-</div><p>
-  Get all information related to host HostName</p>
 <hr>
 
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>

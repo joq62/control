@@ -243,8 +243,7 @@ handle_call({load_appl,NodeInfoRecord,ApplSpec}, _From, State) ->
 	      {error,Reason}->
 		  NewState=State,
 		  {error,Reason};
-	      {ok,ApplInfoRecord}->
-		  Deployment=#deployment{node_info=NodeInfoRecord,appl_info=ApplInfoRecord},
+	      {ok,Deployment}->
 		  NewState=State#state{deployments=[Deployment|State#state.deployments]},
 		  {ok,Deployment}
 	  end,
@@ -361,34 +360,12 @@ handle_info({nodedown,WorkerNode}, State) ->
 	    io:format("error ~p~n",[{"eexists WorkerNode ",WorkerNode,?MODULE,?LINE}]),
 	    NewState=State#state{monitored_nodes=lists:delete(WorkerNode,State#state.monitored_nodes)},
 	    {error,["eexists WorkerNode ",WorkerNode,?MODULE,?LINE]};
-	DeploymentsWorkerNode->
-	    io:format("DeploymentsWorkerNode  ~p~n",[{DeploymentsWorkerNode,?MODULE,?LINE}]),
-	    %% remove 
+	DeploymentsForWorkerNode->
+	    % Remove deployments
+	    WorkerListRemoved=[Deployment||Deployment<-State#state.deployments,
+					   false=:=lists:member(Deployment,DeploymentsForWorkerNode)],
+	    NewState=State#state{deployments=WorkerListRemoved}
 	    
-	    
-	    NewState=State
-	  
-
-	    %L1=lists:delete({WorkerNode,WorkerDir,ApplicationDir,ApplSpec,App},State#state.deployed_appl),
-	    %case lib_appl_ctrl:load_appl(ApplSpec) of
-	%	{error,Reason}->
-	%	    io:format("error  ~p~n",[{Reason,?MODULE,?LINE}]),
-	%	    NewState=State#state{deployed_appl=L1,
-	%				 monitored_nodes=lists:delete(WorkerNode,State#state.monitored_nodes)};
-	%	{ok,NewWorkerNode,NewWorkerDir,ApplicationDir,ApplSpec,App}->
-	%	    case lib_appl_ctrl:start_appl(WorkerNode,App) of
-	%		{error,Reason}->
-	%		    io:format("error  ~p~n",[{Reason,?MODULE,?LINE}]),
-	%		    NewState=State#state{deployed_appl=L1,
-	%					 monitored_nodes=lists:delete(WorkerNode,State#state.monitored_nodes)};
-	%		ok->
-	%		    io:format("NewWorkerNode,NewWorkerDir,ApplicationDir,ApplSpec,App ~p~n",[{NewWorkerNode,NewWorkerDir,ApplicationDir,ApplSpec,App,?MODULE,?LINE}]),
-	%		    erlang:monitor_node(NewWorkerNode,true),
-	%		    NodesToMonitor=lists:usort([NewWorkerNode|State#state.monitored_nodes]),		  
-	%		    NewState=State#state{deployed_appl=[{NewWorkerNode,NewWorkerDir,ApplicationDir,ApplSpec,App}|L1],
-	%					 monitored_nodes=NodesToMonitor}
-	%	    end
-	 %   end
     end,
     {noreply, NewState};
 

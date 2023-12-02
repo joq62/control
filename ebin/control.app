@@ -8,6 +8,6 @@
               {modules,[appl_ctrl,control,control_app,control_provider_server,
                         control_sup,deployment_info,lib_appl_ctrl,lib_control,
                         lib_node_ctrl,lib_provider,node_ctrl,node_info,
-                        provider]},
+                        orchestrator,provider]},
               {licenses,["Apache-2.0"]},
               {links,[]}]}.

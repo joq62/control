@@ -6,7 +6,7 @@
 %%% @end
 %%% Created : 18 Apr 2023 by c50 <joq62@c50>
 %%%-------------------------------------------------------------------
--module(node_ctrl).
+-module(orchestrator).
 
 -behaviour(gen_server).
 %%--------------------------------------------------------------------
@@ -16,6 +16,7 @@
 
 -include("log.api").
 -include("node.hrl").
+-include("appl.hrl").
 
 -include("control_config.hrl").
 -include("infra_appls.hrl").
@@ -23,9 +24,7 @@
 
 %% API
 -export([
-	 running_worker_nodes/0,
-	 node_info_list/0,
-	 
+%	 init_orchestrate/0,
 	 create_workers/0,
 	 create_worker/2,
 	 delete_worker/1,
@@ -52,8 +51,8 @@
 -define(SERVER, ?MODULE).
 		     
 -record(state, {
-		running_worker_nodes,
-		node_info_list,
+		worker_list,
+		worker_info,
 		num_workers,
 		hostname,
 		cookie_str
@@ -64,31 +63,6 @@
 %%% API
 %%%===================================================================
 
-
-
-%%--------------------------------------------------------------------
-%% @doc
-%%  
-%% 
-%% @end
-%%--------------------------------------------------------------------
--spec  running_worker_nodes() -> {NodeInfoList :: term()} | 
-	  {error, Error :: term()}.
-running_worker_nodes() ->
-    gen_server:call(?SERVER,{running_worker_nodes},infinity).
-
-%%--------------------------------------------------------------------
-%% @doc
-%%  
-%% 
-%% @end
-%%--------------------------------------------------------------------
--spec  node_info_list() -> {NodeInfoList :: term()} | 
-	  {error, Error :: term()}.
-node_info_list() ->
-    gen_server:call(?SERVER,{node_info_list},infinity).
-
-
 %%--------------------------------------------------------------------
 %% @doc
 %% Allocate the node with least num of running applications
@@ -96,7 +70,7 @@ node_info_list() ->
 %% 
 %% @end
 %%--------------------------------------------------------------------
--spec  allocate() -> {NodeInfo :: term()} | 
+-spec  allocate() -> {NodeInfoRecord :: term()} | 
 	  {error, Error :: term()}.
 allocate() ->
     gen_server:call(?SERVER,{allocate},infinity).
@@ -152,7 +126,7 @@ kill()->
 %% 
 %% @end
 %%--------------------------------------------------------------------
--spec worker_list() -> NodeInfList :: term() | Error::term().
+-spec worker_list() -> DeploymentList :: term() | Error::term().
 worker_list()-> 
     gen_server:call(?SERVER, {worker_list},infinity).
 
@@ -203,15 +177,15 @@ init([]) ->
     {ok,HostName}=net:gethostname(),
     {ok,NumWorkers}=etcd_infra:get_num_workers(?InfraSpec,HostName),
     {ok,CookieStr}=etcd_infra:get_cookie_str(?InfraSpec),
-    NodeInfoList=lib_node_ctrl:create_node_info(NumWorkers,HostName,CookieStr),
+    ListOfNodeInfo=lib_node_ctrl:create_node_info(NumWorkers,HostName,CookieStr),
     
   %  io:format("ListOfNodeInfo ~p~n",[{ListOfNodeInfo,?MODULE,?LINE}]),
     
      
     ?LOG_NOTICE("Server started ",[node()]),
     {ok, #state{
-	    running_worker_nodes=[],
-	    node_info_list=NodeInfoList,
+	    worker_list=[],
+	    worker_info=ListOfNodeInfo,
 	    num_workers=NumWorkers,
 	    hostname=HostName,
 	    cookie_str=CookieStr
@@ -237,37 +211,54 @@ init([]) ->
 
 
 
+
+handle_call({create_workers}, _From, State) ->
+    Reply=case lib_node_ctrl:create_workers(State#state.worker_info,?InfraAppls) of
+	      {error,Reason}->
+		  NewState=State,
+		  {error,Reason};
+	      {ok,Deployments}->
+		  io:format("Deployments ~p~n",[{Deployments,?MODULE,?LINE}]),
+		  NewWorkerList=lists:append(Deployments,State#state.worker_list),
+		  NewState=State#state{worker_list=NewWorkerList},
+		  {ok,Deployments}
+	  end,
+    {reply, Reply, NewState};
+
 handle_call({create_worker,NodeName,WorkerDir}, _From, State) ->
     WorkerNode=list_to_atom(NodeName++"@"++State#state.hostname),    
-    NodeInfo=#node_info{worker_node=WorkerNode,
+    NodeInfoRecord=#node_info{worker_node=WorkerNode,
 			      worker_dir=WorkerDir,
 			      nodename=NodeName,
 			      hostname=State#state.hostname,
 			      cookie_str=State#state.cookie_str},
     
-    Reply=case lib_node_ctrl:create_worker(NodeInfo) of
+    Reply=case lib_node_ctrl:create_worker(NodeInfoRecord,?InfraAppls) of
 	      {error,Reason}->
 		  NewState=State,
 		  {error,Reason};
-	      {ok,NewNodeInfo}->
-		  erlang:monitor_node(NewNodeInfo#node_info.worker_node,true),
-		  NewRunningWorkerNodes=[NewNodeInfo|State#state.running_worker_nodes],
-		  NewState=State#state{running_worker_nodes=NewRunningWorkerNodes},
-		  {ok,NodeInfo}
+	      {ok,DeploymentList}->
+		  io:format("DeploymentList ~p~n",[{DeploymentList,?MODULE,?LINE}]),
+		  NewWorkerList=lists:append([[Deployment|State#state.worker_list]||Deployment<-DeploymentList]),
+		  io:format("NewWorkerList ~p~n",[{NewWorkerList,?MODULE,?LINE}]),
+		  NewState=State#state{worker_list=NewWorkerList},
+		  {ok,DeploymentList}
 	  end,
+    
     {reply, Reply, NewState};
 
-
-handle_call({delete_worker,NodeInfo}, _From, State) ->
-    Reply=case lists:member(NodeInfo,State#state.running_worker_nodes) of
+handle_call({delete_worker,Deployment}, _From, State) ->
+    io:format("Deployment ~p~n",[{Deployment,?MODULE,?LINE}]),
+    NodeInfoRecord=Deployment#deployment.node_info,
+    Reply=case node_info:find(Deployment,State#state.worker_list) of
 	      false->
 		  NewState=State,
-		  {error,["NodeInfo doesnt exists inrunning_worker_nodes",NodeInfo,State#state.running_worker_nodes,?MODULE,?LINE]};
-	      true->
-		  erlang:monitor_node(NodeInfo#node_info.worker_node,false),
+		  {error,["NodeInfoRecord doesnt exists in worker_list",NodeInfoRecord,State#state.worker_list]};
+	      DeploymentWanted->
+		  NodeInfo=Deployment#deployment.node_info,
 		  lib_node_ctrl:delete_worker(NodeInfo),
-		  NewRunningWorkerNodes=lists:delete(NodeInfo,State#state.running_worker_nodes),
-		  NewState=State#state{running_worker_nodes=NewRunningWorkerNodes},
+		  NewWorkerList=lists:append(lists:delete(DeploymentWanted,State#state.worker_list)),
+		  NewState=State#state{worker_list=NewWorkerList},
 		  ok
 	  end,
 
@@ -275,23 +266,20 @@ handle_call({delete_worker,NodeInfo}, _From, State) ->
 
 
 handle_call({allocate}, _From, State) ->
-    Reply=case lib_node_ctrl:allocate(State#state.running_worker_nodes) of
+    Reply=case lib_node_ctrl:allocate(State#state.worker_list) of
 	      {error,Reason}->
 		  NewState=State,
 		  {error,Reason};
-	      {ok,NodeInfo,NewRunningWorkerNodes}->
-		  NewState=State#state{running_worker_nodes=NewRunningWorkerNodes},
-		  {ok,NodeInfo}
+	      {ok,Deployment,NewWorkerList}->
+		  io:format("NewWorkerList ~p~n",[{NewWorkerList,?MODULE,?LINE}]),
+		  NewState=State#state{worker_list=NewWorkerList},
+		  {ok,Deployment}
 	  end,
     
     {reply, Reply, NewState};
 
-handle_call({node_info_list}, _From, State) ->
-    Reply=State#state.node_info_list,
-    {reply, Reply, State};
-
-handle_call({running_worker_nodes}, _From, State) ->
-    Reply=State#state.running_worker_nodes,
+handle_call({worker_list}, _From, State) ->
+    Reply=State#state.worker_list,
     {reply, Reply, State};
 
 handle_call({ping}, _From, State) ->
@@ -331,22 +319,25 @@ handle_cast(UnMatchedSignal, State) ->
 
 handle_info({nodedown,Node}, State) ->
     io:format("nodedown,Node  ~p~n",[{Node,?MODULE,?LINE}]),
-    erlang:monitor_node(Node,false),
-    case node_info:find(State#state.running_worker_nodes,Node) of
+    case node_info:keyfind_deployment(worker_node,Node,State#state.worker_list) of
 	false->
+	    io:format("false ~p~n",[{?MODULE,?LINE}]),
 	    NewState=State,
-	    {error,["Node doesnt exist i running_worker_nodes ",Node,?MODULE,?LINE]};
-	NodeInfo->
-	    case lib_node_ctrl:create_worker(NodeInfo) of
+	    {error,["Node doesnt exist i worker_list ",Node,?MODULE,?LINE]};
+	ListOfDeployments->
+	    io:format("ListOfDeployments  ~p~n",[{ListOfDeployments,?MODULE,?LINE}]),
+	    [Deployment|_]=ListOfDeployments,
+	 
+	    NodeInfoRecord=Deployment#deployment.node_info,
+	    case lib_node_ctrl:create_worker(NodeInfoRecord,?InfraAppls) of
 		{error,Reason}->
 		    NewState=State,
 		    {error,Reason};
-		{ok,NewNodeInfo}->
-		    io:format("NewNodeInfo  ~p~n",[{NewNodeInfo,?MODULE,?LINE}]),
-		    erlang:monitor_node(NewNodeInfo#node_info.worker_node,true),
-		    RunningDeleted=lists:delete(NodeInfo,State#state.running_worker_nodes),
-		    NewRunningList=[NewNodeInfo|RunningDeleted],
-		    NewState=State#state{running_worker_nodes=NewRunningList}
+		{ok,DeploymentList}->
+   		    io:format("Restarted node  DeploymentList ~p~n",[{DeploymentList,?MODULE,?LINE}]),
+		    L1=lists:append([lists:delete(NodeInfoRecord,State#state.worker_list)||Deployment<-DeploymentList]),
+		    NewWorkerList=lists:append([[Deployment|L1]||Deployment<-DeploymentList]),
+		    NewState=State#state{worker_list=NewWorkerList}
 			
 	    end
     end,

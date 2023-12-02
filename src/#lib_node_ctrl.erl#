@@ -59,7 +59,6 @@ create_worker(NodeInfo)->
 		       {error,Reason}->
 			   {error,["Failed to start Node ",Reason,NodeInfo,ErlArgs,?MODULE,?LINE]};
 		       {ok,WorkerNode}->
-			   
 			   {ok,NodeInfo} 
 			  
 		   end

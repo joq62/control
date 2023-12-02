@@ -2,12 +2,12 @@
 %%% @author c50 <joq62@c50>
 %%% @copyright (C) 2023, c50
 %%% @doc
-%%% Data: Nodename,cookie, node, status(allocated,free,stopped)
+%%%
 %%% @end
 %%% Created : 18 Apr 2023 by c50 <joq62@c50>
 %%%-------------------------------------------------------------------
--module(node_ctrl).
-
+-module(appl_ctrl).
+ 
 -behaviour(gen_server).
 %%--------------------------------------------------------------------
 %% Include 
@@ -15,30 +15,22 @@
 %%--------------------------------------------------------------------
 
 -include("log.api").
+-include("appl.hrl").
 -include("node.hrl").
 
--include("control_config.hrl").
--include("infra_appls.hrl").
-
-
 %% API
--export([
-	 running_worker_nodes/0,
-	 node_info_list/0,
-	 
-	 create_workers/0,
-	 create_worker/2,
-	 delete_worker/1,
-	 allocate/0
-	]).
-
-%% admin
-
-
-
 
 -export([
-	 kill/0,
+	 init_new_worker/0,
+	 add_appl/2,
+	 load_appl/2,
+	 start_appl/1,
+	 stop_appl/1,
+	 unload_appl/1,
+	 loaded_appls/0,
+	 running_appls/0,
+	 is_alive/2,
+
 	 ping/0,
 	 stop/0
 	]).
@@ -50,111 +42,111 @@
 	 terminate/2, code_change/3, format_status/2]).
 
 -define(SERVER, ?MODULE).
-		     
--record(state, {
-		running_worker_nodes,
-		node_info_list,
-		num_workers,
-		hostname,
-		cookie_str
 
+% Data
+% deploy_appl {AppleInfoRecord,NodeInfoRecord}
+-record(state, {
+		monitored_nodes,
+		deployments
+		
 	       }).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
-
-
 %%--------------------------------------------------------------------
 %% @doc
-%%  
-%% 
+%% init_new_worker, allocate, load and start infra appls
 %% @end
 %%--------------------------------------------------------------------
--spec  running_worker_nodes() -> {NodeInfoList :: term()} | 
+-spec add_appl(DeploymentInfra :: term(),ApplSpec :: string()) -> {ok,Deployment :: term()} | 
 	  {error, Error :: term()}.
-running_worker_nodes() ->
-    gen_server:call(?SERVER,{running_worker_nodes},infinity).
+
+add_appl(DeploymentInfra,ApplSpec) ->
+    gen_server:call(?SERVER, {add_appl,DeploymentInfra,ApplSpec},infinity).
 
 %%--------------------------------------------------------------------
 %% @doc
-%%  
-%% 
+%% adds a application to a worker that is initiated
 %% @end
 %%--------------------------------------------------------------------
--spec  node_info_list() -> {NodeInfoList :: term()} | 
+-spec init_new_worker() -> {ok,Deployment :: term()} | 
 	  {error, Error :: term()}.
-node_info_list() ->
-    gen_server:call(?SERVER,{node_info_list},infinity).
+
+init_new_worker() ->
+    gen_server:call(?SERVER, {init_new_worker},infinity).
 
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Allocate the node with least num of running applications
-%% 
-%% 
+%% load application   
 %% @end
 %%--------------------------------------------------------------------
--spec  allocate() -> {NodeInfo :: term()} | 
+-spec load_appl(NodeInfoRecord :: term(),ApplSpec :: string()) -> {ok,DeployInfoRecord :: term()} | 
 	  {error, Error :: term()}.
-allocate() ->
-    gen_server:call(?SERVER,{allocate},infinity).
-
+load_appl(NodeInfoRecord,ApplSpec)->
+    gen_server:call(?SERVER, {load_appl,NodeInfoRecord,ApplSpec},infinity).
 %%--------------------------------------------------------------------
 %% @doc
-%% Create a worker with a node name = NodeName and node dir=NodeDir. It's implict tha
-%% the worker starts at current host and has the same cookie.
-%% If the worker exists it will be killed and the dir will be deleted
-%%  
+%%  application   
 %% @end
 %%--------------------------------------------------------------------
--spec  create_workers() -> {ok,ListOfWorkers :: term()} | 
+-spec start_appl(DeployInfoRecord :: term()) -> ok | 
 	  {error, Error :: term()}.
-create_workers() ->
-    gen_server:call(?SERVER,{create_workers},infinity).
+start_appl(DeployInfoRecord)->
+    gen_server:call(?SERVER, {start_appl,DeployInfoRecord},infinity).
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Create a worker with a node name = NodeName and node dir=NodeDir. It's implict tha
-%% the worker starts at current host and has the same cookie.
-%% If the worker exists it will be killed and the dir will be deleted
-%%  
+%%  application   
 %% @end
 %%--------------------------------------------------------------------
--spec  create_worker(NodeName :: string(), NodeDir :: string()) -> {ok,Node :: node()} | 
+-spec stop_appl(DeployInfoRecord :: term()) -> ok | 
 	  {error, Error :: term()}.
-create_worker(NodeName, NodeDir) ->
-    gen_server:call(?SERVER,{create_worker,NodeName, NodeDir},infinity).
+stop_appl(DeployInfoRecord)->
+    gen_server:call(?SERVER, {stop_appl,DeployInfoRecord},infinity).
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Worker vm is stopped and worker dir is deleted
-%%  
+%%  application   
 %% @end
 %%--------------------------------------------------------------------
--spec  delete_worker(NodeName :: string()) -> {ok,Node :: node()} | 
+-spec unload_appl(DeployInfoRecord :: term()) -> ok | 
 	  {error, Error :: term()}.
-delete_worker(NodeName) ->
-    gen_server:call(?SERVER,{delete_worker,NodeName},infinity).
+unload_appl(DeployInfoRecord)->
+    gen_server:call(?SERVER, {unload_appl,DeployInfoRecord},infinity).
 
 %%--------------------------------------------------------------------
 %% @doc
-%% 
+%% Get all information related to host HostName  
 %% @end
 %%--------------------------------------------------------------------
-kill()->
-    gen_server:call(?SERVER, {kill},infinity).
+-spec loaded_appls() -> ListOfAppls :: term().
 
+loaded_appls()->
+    gen_server:call(?SERVER, {loaded_appls},infinity).
 
 %%--------------------------------------------------------------------
 %% @doc
-%% 
+%% Get all information related to host HostName  
 %% @end
 %%--------------------------------------------------------------------
--spec worker_list() -> NodeInfList :: term() | Error::term().
-worker_list()-> 
-    gen_server:call(?SERVER, {worker_list},infinity).
+-spec running_appls() -> ListOfAppls :: term().
+
+running_appls()->
+    gen_server:call(?SERVER, {running_appls},infinity).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Get all information related to host HostName  
+%% @end
+%%--------------------------------------------------------------------
+-spec is_alive(App :: atom(),WorkerNode :: node()) -> IsDeployed :: boolean() | {error, Error :: term()}.
+
+is_alive(App,WorkerNode)->
+    gen_server:call(?SERVER, {is_alive,App,WorkerNode},infinity).
+
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -164,8 +156,6 @@ worker_list()->
 -spec ping() -> pong | Error::term().
 ping()-> 
     gen_server:call(?SERVER, {ping},infinity).
-
-
 %%--------------------------------------------------------------------
 %% @doc
 %% Starts the server
@@ -179,8 +169,7 @@ start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 
-%stop()-> gen_server:cast(?SERVER, {stop}).
-stop()-> gen_server:stop(?SERVER).
+stop()-> gen_server:call(?SERVER, {stop},infinity).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -199,24 +188,14 @@ stop()-> gen_server:stop(?SERVER).
 	  ignore.
 
 init([]) ->
-  
-    {ok,HostName}=net:gethostname(),
-    {ok,NumWorkers}=etcd_infra:get_num_workers(?InfraSpec,HostName),
-    {ok,CookieStr}=etcd_infra:get_cookie_str(?InfraSpec),
-    NodeInfoList=lib_node_ctrl:create_node_info(NumWorkers,HostName,CookieStr),
     
-  %  io:format("ListOfNodeInfo ~p~n",[{ListOfNodeInfo,?MODULE,?LINE}]),
     
-     
-    ?LOG_NOTICE("Server started ",[node()]),
+    ?LOG_NOTICE("Server started ",[]),
     {ok, #state{
-	    running_worker_nodes=[],
-	    node_info_list=NodeInfoList,
-	    num_workers=NumWorkers,
-	    hostname=HostName,
-	    cookie_str=CookieStr
-	    
+	    monitored_nodes=[],
+	    deployments=[]
 	   }}.
+
 
 %%--------------------------------------------------------------------
 %% @private
@@ -236,62 +215,103 @@ init([]) ->
 
 
 
-
-handle_call({create_worker,NodeName,WorkerDir}, _From, State) ->
-    WorkerNode=list_to_atom(NodeName++"@"++State#state.hostname),    
-    NodeInfo=#node_info{worker_node=WorkerNode,
-			      worker_dir=WorkerDir,
-			      nodename=NodeName,
-			      hostname=State#state.hostname,
-			      cookie_str=State#state.cookie_str},
-    
-    Reply=case lib_node_ctrl:create_worker(NodeInfo) of
+handle_call({init_new_worker}, _From, State) ->
+    Reply=case lib_appl_ctrl:init_new_worker() of
 	      {error,Reason}->
 		  NewState=State,
 		  {error,Reason};
-	      {ok,NewNodeInfo}->
-		  erlang:monitor_node(NewNodeInfo#node_info.worker_node,true),
-		  NewRunningWorkerNodes=[NewNodeInfo|State#state.running_worker_nodes],
-		  NewState=State#state{running_worker_nodes=NewRunningWorkerNodes},
-		  {ok,NodeInfo}
+	      {ok,DeploymentList}->
+		  NewState=State#state{deployments=lists:append(DeploymentList,State#state.deployments)},
+		  {ok,DeploymentList}
+	  end,
+    {reply, Reply, NewState};
+
+handle_call({add_appl,DeploymentInfra,ApplSpec}, _From, State) ->
+    Reply=case lib_appl_ctrl:add_appl(DeploymentInfra,ApplSpec) of
+	      {error,Reason}->
+		  NewState=State,
+		  {error,Reason};
+	      {ok,Deployment}->
+		  NewState=State#state{deployments=[Deployment|State#state.deployments]},
+		  {ok,Deployment}
 	  end,
     {reply, Reply, NewState};
 
 
-handle_call({delete_worker,NodeInfo}, _From, State) ->
-    Reply=case lists:member(NodeInfo,State#state.running_worker_nodes) of
+handle_call({load_appl,NodeInfoRecord,ApplSpec}, _From, State) ->
+    Reply=case lib_appl_ctrl:load_appl(NodeInfoRecord,ApplSpec) of
+	      {error,Reason}->
+		  NewState=State,
+		  {error,Reason};
+	      {ok,Deployment}->
+		  NewState=State#state{deployments=[Deployment|State#state.deployments]},
+		  {ok,Deployment}
+	  end,
+    {reply, Reply, NewState};
+
+handle_call({start_appl,Deployment}, _From, State) ->
+    Reply=case lists:member(Deployment,State#state.deployments) of
 	      false->
-		  NewState=State,
-		  {error,["NodeInfo doesnt exists inrunning_worker_nodes",NodeInfo,State#state.running_worker_nodes,?MODULE,?LINE]};
+		  {error,["Deployment doesnt exists",Deployment,?MODULE,?LINE]};
 	      true->
-		  erlang:monitor_node(NodeInfo#node_info.worker_node,false),
-		  lib_node_ctrl:delete_worker(NodeInfo),
-		  NewRunningWorkerNodes=lists:delete(NodeInfo,State#state.running_worker_nodes),
-		  NewState=State#state{running_worker_nodes=NewRunningWorkerNodes},
-		  ok
+		  case lib_appl_ctrl:start_appl(Deployment) of
+		      {error,Reason}->
+			  {error,Reason};
+		      ok->
+			  ok
+		  end
 	  end,
-
-    {reply, Reply, NewState};
-
-
-handle_call({allocate}, _From, State) ->
-    Reply=case lib_node_ctrl:allocate(State#state.running_worker_nodes) of
-	      {error,Reason}->
-		  NewState=State,
-		  {error,Reason};
-	      {ok,NodeInfo,NewRunningWorkerNodes}->
-		  NewState=State#state{running_worker_nodes=NewRunningWorkerNodes},
-		  {ok,NodeInfo}
-	  end,
-    
-    {reply, Reply, NewState};
-
-handle_call({node_info_list}, _From, State) ->
-    Reply=State#state.node_info_list,
     {reply, Reply, State};
 
-handle_call({running_worker_nodes}, _From, State) ->
-    Reply=State#state.running_worker_nodes,
+handle_call({stop_appl,Deployment}, _From, State) ->
+    Reply=case lists:member(Deployment,State#state.deployments) of
+	      false->
+		  {error,["Deployment doesnt exists",Deployment,?MODULE,?LINE]};
+	      true->
+		  case lib_appl_ctrl:stop_appl(Deployment) of
+		      {error,Reason}->
+			  {error,Reason};
+		      ok->
+			  ok
+		  end
+	  end,
+    {reply, Reply, State};
+
+handle_call({unload_appl,Deployment}, _From, State) ->
+    Reply=case lists:member(Deployment,State#state.deployments) of
+	      false->
+		  NewState=State,
+		  {error,["Deployment doesnt exists",Deployment,?MODULE,?LINE]};
+	      true->
+		  case lib_appl_ctrl:unload_appl(Deployment) of
+		      {error,Reason}->
+			  NewState=State,
+			  {error,Reason};
+		      ok->
+			  NewState=State#state{deployments=lists:delete(Deployment,State#state.deployments)},
+			  ok
+		  end
+	  end,
+    {reply, Reply, NewState};
+
+
+handle_call({loaded_appls}, _From, State) ->
+    Reply=[Deployment#deployment.appl_info||Deployment<-State#state.deployments],
+    {reply, Reply, State};
+
+handle_call({running_appls}, _From, State) ->
+    Reply={error,not_implemented},
+    {reply, Reply, State};
+
+handle_call({is_alive,App,WorkerNode}, _From, State) ->
+    Reply=case rpc:call(WorkerNode,App,ping,[],5000) of
+	      {badrpc,Reason}->
+		  false;
+	      pong->
+		  true;
+	      _->
+		  false
+	  end,
     {reply, Reply, State};
 
 handle_call({ping}, _From, State) ->
@@ -309,10 +329,6 @@ handle_call(UnMatchedSignal, From, State) ->
 %% Handling cast messages
 %% @end
 %%--------------------------------------------------------------------
-handle_cast({stop}, State) ->
-    
-    {stop,normal,ok,State};
-
 handle_cast(UnMatchedSignal, State) ->
     io:format("unmatched_signal ~p~n",[{UnMatchedSignal,?MODULE,?LINE}]),
     {noreply, State}.
@@ -329,29 +345,29 @@ handle_cast(UnMatchedSignal, State) ->
 	  {noreply, NewState :: term(), hibernate} |
 	  {stop, Reason :: normal | term(), NewState :: term()}.
 
-handle_info({nodedown,Node}, State) ->
-    io:format("nodedown,Node  ~p~n",[{Node,?MODULE,?LINE}]),
-    erlang:monitor_node(Node,false),
-    case node_info:find(State#state.running_worker_nodes,Node) of
+%% Monitored Node down
+%% Stop monitoring that node 
+%% Remove from  State#state.monitored_nodes
+%% Get the deployment on that node 
+%% Remove Deployment from deployment list
+%% 
+
+handle_info({nodedown,WorkerNode}, State) ->
+    io:format("nodedown ~p~n",[{WorkerNode,?MODULE,?LINE}]),
+    erlang:monitor_node(WorkerNode,false),
+    case deployment_info:keyfind(worker_node,WorkerNode,State#state.deployments) of
 	false->
-	    NewState=State,
-	    {error,["Node doesnt exist i running_worker_nodes ",Node,?MODULE,?LINE]};
-	NodeInfo->
-	    case lib_node_ctrl:create_worker(NodeInfo) of
-		{error,Reason}->
-		    NewState=State,
-		    {error,Reason};
-		{ok,NewNodeInfo}->
-		    io:format("NewNodeInfo  ~p~n",[{NewNodeInfo,?MODULE,?LINE}]),
-		    erlang:monitor_node(NewNodeInfo#node_info.worker_node,true),
-		    RunningDeleted=lists:delete(NodeInfo,State#state.running_worker_nodes),
-		    NewRunningList=[NewNodeInfo|RunningDeleted],
-		    NewState=State#state{running_worker_nodes=NewRunningList}
-			
-	    end
+	    io:format("error ~p~n",[{"eexists WorkerNode ",WorkerNode,?MODULE,?LINE}]),
+	    NewState=State#state{monitored_nodes=lists:delete(WorkerNode,State#state.monitored_nodes)},
+	    {error,["eexists WorkerNode ",WorkerNode,?MODULE,?LINE]};
+	DeploymentsForWorkerNode->
+	    % Remove deployments
+	    WorkerListRemoved=[Deployment||Deployment<-State#state.worker_list,
+					   false=:=lists:member(Deployment,DeploymentsForWorkerNode)],
+	    NewState=State#state{worker_list=WorkerListRemoved},
+	    
     end,
     {noreply, NewState};
-
 
 handle_info(Info, State) ->
     io:format("unmatched_signal ~p~n",[{Info,?MODULE,?LINE}]),
