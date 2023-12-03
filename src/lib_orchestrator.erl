@@ -122,21 +122,24 @@ init_logger_file(DeploymentInfo)->
 	{badrpc,Reason}->
 	    {error,[badrpc,Reason,?MODULE,?LINE]};
 	false->
-	    case rpc:call(WorkerNode,filelib,is_dir,[?MainLogDir],5000) of
+	    case rpc:call(WorkerNode,file,make_dir,[?MainLogDir],5000) of
 		{badrpc,Reason}->
 		    {error,[badrpc,Reason,?MODULE,?LINE]};
-		false->
-		    case rpc:call(WorkerNode,file,make_dir,[?MainLogDir],5000) of
-			{badrpc,Reason}->
-			    {error,[badrpc,Reason,?MODULE,?LINE]};
-			{error,Reason}->
-			    {error,["Failed to make dir ",Reason,?MODULE,?LINE]};
+		{error,Reason}->
+		    {error,["Failed to make dir ",Reason,?MODULE,?LINE]};
+		ok ->
+		    %%---------- create logger files
+   		    NodeNodeLogDir=filename:join(?MainLogDir,NodeName),
+		    case rpc:call(WorkerNode,log,create_logger,[NodeNodeLogDir,?LocalLogDir,?LogFile,?MaxNumFiles,?MaxNumBytes],5000) of
+			{badrpc,Reason1}->
+			    {error,[badrpc,Reason1,?MODULE,?LINE]};
+			{error,Reason1}->
+			    {error,["Failed to create logger file ",Reason1,?MODULE,?LINE]};
 			ok ->
-			    ok
-		    end;
-		true ->
-		    ok
-	    end,
+			    {ok,DeploymentInfo}
+		    end
+	    end;
+	true ->
 	    %%---------- create logger files
 	    NodeNodeLogDir=filename:join(?MainLogDir,NodeName),
 	    case rpc:call(WorkerNode,log,create_logger,[NodeNodeLogDir,?LocalLogDir,?LogFile,?MaxNumFiles,?MaxNumBytes],5000) of
@@ -146,20 +149,9 @@ init_logger_file(DeploymentInfo)->
 		    {error,["Failed to create logger file ",Reason1,?MODULE,?LINE]};
 		ok ->
 		    {ok,DeploymentInfo}
-	   end;
-	true->
-	    %%---------- create logger files
-	    NodeNodeLogDir=filename:join(?MainLogDir,NodeName),
-	    case rpc:call(WorkerNode,log,create_logger,[NodeNodeLogDir,?LocalLogDir,?LogFile,?MaxNumFiles,?MaxNumBytes],5000) of
-		{badrpc,Reason2}->
-		    {error,[badrpc,Reason2,?MODULE,?LINE]};
-		{error,Reason2}->
-		    {error,["Failed to create logger file ",Reason2,?MODULE,?LINE]};
-		ok ->
-		    {ok,DeploymentInfo}
 	    end
     end.
-	  
+    
 
 
 %%--------------------------------------------------------------------
