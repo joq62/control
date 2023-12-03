@@ -32,8 +32,8 @@ start()->
  %   ok=appl_ctrl_test:start(),
 
     io:format("Test OK !!! ~p~n",[?MODULE]),
-    timer:sleep(1000),
-    init:stop(),
+%    timer:sleep(1000),
+%    init:stop(),
     ok.
 
 %% --------------------------------------------------------------------

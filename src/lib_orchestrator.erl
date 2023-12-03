@@ -9,6 +9,9 @@
 -module(lib_orchestrator).
 
 -include("node.hrl").
+-include("appl.hrl").
+-include("control_config.hrl").
+
 %% API
 -export([
 	 create_workers/0,
@@ -90,10 +93,74 @@ load_start_infra([],_RunningNodeInfoList,Acc)->
 	    {error,["Failed to start workers ",Error,?MODULE,?LINE]}
     end;
 
+load_start_infra(["log"|T],RunningNodeInfoList,Acc)->
+    StartResultList=[load_start("log",NodeInfo)||NodeInfo<-RunningNodeInfoList],
+    InitLoggerResult=[init_logger_file(DeploymentInfo)||{ok,DeploymentInfo}<-StartResultList],
+    ErrorStartResult=[{error,Reason}||{error,Reason}<-StartResultList],
+    NewAcc=lists:append([InitLoggerResult,ErrorStartResult,Acc]),
+    load_start_infra(T,RunningNodeInfoList,NewAcc);
+
 load_start_infra([ApplSpec|T],RunningNodeInfoList,Acc)->
     StartResult=[load_start(ApplSpec,NodeInfo)||NodeInfo<-RunningNodeInfoList],
     NewAcc=lists:append(StartResult,Acc),
     load_start_infra(T,RunningNodeInfoList,NewAcc).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% 
+%% @end
+%%--------------------------------------------------------------------
+init_logger_file(DeploymentInfo)->
+    NodeInfo=DeploymentInfo#deployment_info.node_info,
+    ApplInfo=DeploymentInfo#deployment_info.appl_info,
+    WorkerNode=NodeInfo#node_info.worker_node,
+    NodeName=NodeInfo#node_info.nodename, 
+
+    %%---------------- Check if need for creating a main log dir
+    
+    case rpc:call(WorkerNode,filelib,is_dir,[?MainLogDir],5000) of
+	{badrpc,Reason}->
+	    {error,[badrpc,Reason,?MODULE,?LINE]};
+	false->
+	    case rpc:call(WorkerNode,filelib,is_dir,[?MainLogDir],5000) of
+		{badrpc,Reason}->
+		    {error,[badrpc,Reason,?MODULE,?LINE]};
+		false->
+		    case rpc:call(WorkerNode,file,make_dir,[?MainLogDir],5000) of
+			{badrpc,Reason}->
+			    {error,[badrpc,Reason,?MODULE,?LINE]};
+			{error,Reason}->
+			    {error,["Failed to make dir ",Reason,?MODULE,?LINE]};
+			ok ->
+			    ok
+		    end;
+		true ->
+		    ok
+	    end,
+	    %%---------- create logger files
+	    NodeNodeLogDir=filename:join(?MainLogDir,NodeName),
+	    case rpc:call(WorkerNode,log,create_logger,[NodeNodeLogDir,?LocalLogDir,?LogFile,?MaxNumFiles,?MaxNumBytes],5000) of
+		{badrpc,Reason1}->
+		    {error,[badrpc,Reason1,?MODULE,?LINE]};
+		{error,Reason1}->
+		    {error,["Failed to create logger file ",Reason1,?MODULE,?LINE]};
+		ok ->
+		    {ok,DeploymentInfo}
+	   end;
+	true->
+	    %%---------- create logger files
+	    NodeNodeLogDir=filename:join(?MainLogDir,NodeName),
+	    case rpc:call(WorkerNode,log,create_logger,[NodeNodeLogDir,?LocalLogDir,?LogFile,?MaxNumFiles,?MaxNumBytes],5000) of
+		{badrpc,Reason2}->
+		    {error,[badrpc,Reason2,?MODULE,?LINE]};
+		{error,Reason2}->
+		    {error,["Failed to create logger file ",Reason2,?MODULE,?LINE]};
+		ok ->
+		    {ok,DeploymentInfo}
+	    end
+    end.
+	  
+
 
 %%--------------------------------------------------------------------
 %% @doc
