@@ -27,7 +27,8 @@ start()->
     io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME,?LINE}]),
     
     ok=setup(),
-    ok=orchestrator_test:start(),
+    ok=control_test:start(),
+ %   ok=orchestrator_test:start(),
  %   ok=node_ctrl_test:start(),
  %   ok=appl_ctrl_test:start(),
 

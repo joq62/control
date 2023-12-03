@@ -76,6 +76,7 @@
 %% Record and Data
 -record(state, {
 		infra_spec,
+		deployment_spec,
 		deployments}).
 
 %% Table or Data models
@@ -302,7 +303,7 @@ ping()->
 init([]) ->
 
      
-    ?LOG_NOTICE("Server started ",[]),
+    ?LOG_NOTICE("Server started ",[?MODULE]),
     
     TimeOut=0,
  
@@ -452,6 +453,16 @@ handle_info(timeout, State) ->
     rd:trade_resources(),
     ok=rd:detect_target_resources(?TargetTypes,?MaxDetectTime),
    
+    %%---- start_orchestration
+
+    StartOrchestratorResult=orchestrator:start_orchestrate(?DeploymentSpec),
+    ?LOG_NOTICE("StartOrchestratorResult ",[StartOrchestratorResult]),
+    
+    %%---- 
+    
+	
+    
+    
     {noreply, State};
 
 handle_info(Info, State) ->
