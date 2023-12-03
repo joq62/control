@@ -44,7 +44,9 @@ start()->
 %% --------------------------------------------------------------------
 setup()->
     io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
-    ok=dependent_apps:start(),
+    ok=application:start(log),
+    ok=application:start(rd),
+
     ok=application:start(control),
     pong=control:ping(),
     ok.
