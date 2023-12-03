@@ -48,8 +48,14 @@ create_worker(NodeInfo)->
     delete_worker(NodeInfo),
     WorkerDir=NodeInfo#node_info.worker_dir,
     ?LOG_NOTICE("WorkerDir",[WorkerDir]),
-    file:del_dir_r(WorkerDir),
-    false=filelib:is_dir(NodeInfo#node_info.worker_dir),    
+   case filelib:is_dir(WorkerDir) of
+       true->
+	   timer:sleep(1000),
+	   delete_worker(NodeInfo),
+	   ?LOG_NOTICE("Try to delete again ",[filelib:is_dir(WorkerDir)]);
+       false->
+	   ok
+   end,
     Result=case file:make_dir(WorkerDir) of
 	       {error,Reson}->
 		   {error,["Failed to create a dir for ",NodeInfo#node_info.worker_dir,Reson,?MODULE,?LINE]};
@@ -62,7 +68,7 @@ create_worker(NodeInfo)->
 			   {error,["Failed to start Node ",Reason,NodeInfo,ErlArgs,?MODULE,?LINE]};
 		       {ok,_WorkerNode}->
 			   {ok,NodeInfo} 
-			  
+			       
 		   end
 	   end,
     Result.
