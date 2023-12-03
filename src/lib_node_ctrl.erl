@@ -75,6 +75,7 @@ delete_worker(NodeInfo)->
     erlang:monitor_node(WorkerNode,false),
     file:del_dir_r(WorkerDir),
     slave:stop(WorkerNode),
+    timer:sleep(2000),
     ok.
 
 %%--------------------------------------------------------------------
