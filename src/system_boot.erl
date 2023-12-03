@@ -57,6 +57,8 @@ start_link() ->
 	  ignore.
 init([]) ->
     process_flag(trap_exit, true),
+    timer:sleep(60*1000),
+
     LogStart=rpc:call(node(),application,start,[log],2*5000),   
     %%-- init log
     [NodeName,_]=string:tokens(atom_to_list(node()),"@"),
@@ -85,11 +87,14 @@ init([]) ->
 		    ok
 	    end
     end,
+   
     RdStart=rpc:call(node(),application,start,[rd],2*5000),   
     EtcdStart=rpc:call(node(),application,start,[etcd],2*5000),   
    
-    ?LOG_NOTICE("LogStart,RdStart ",[{log,LogStart},{rd,RdStart},{etcd,EtcdStart}]),
-
+    ?LOG_NOTICE("LogStart ",[{log,LogStart}]),
+    ?LOG_NOTICE("RdStart ",[{rd,RdStart}]),
+    ?LOG_NOTICE("EtcdStart ",[{etcd,EtcdStart}]),
+    
     ?LOG_NOTICE("Server started ",[?MODULE]),
     
     {ok, #state{}}.
