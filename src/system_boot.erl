@@ -62,38 +62,40 @@ init([]) ->
     LogStart=rpc:call(node(),application,start,[log],2*5000),   
     %%-- init log
     [NodeName,_]=string:tokens(atom_to_list(node()),"@"),
-    case filelib:is_dir(?MainLogDir) of
-	false->
-	    case file:make_dir(?MainLogDir) of
-		{error,Reason}->
-		    {error,["Failed to make dir ",Reason,?MODULE,?LINE]};
-		ok ->
-		    %%---------- create logger files
-   		    NodeNodeLogDir=filename:join(?MainLogDir,NodeName),
-		    case log:create_logger(NodeNodeLogDir,?LocalLogDir,?LogFile,?MaxNumFiles,?MaxNumBytes) of
-			{error,Reason1}->
-			    {error,["Failed to create logger file ",Reason1,?MODULE,?LINE]};
-			ok ->
-			    ok
-		    end
-	    end;
-	true ->
-	    %%---------- create logger files
-	    NodeNodeLogDir=filename:join(?MainLogDir,NodeName),
-	    case log:create_logger(NodeNodeLogDir,?LocalLogDir,?LogFile,?MaxNumFiles,?MaxNumBytes) of
-		{error,Reason1}->
-		    {error,["Failed to create logger file ",Reason1,?MODULE,?LINE]};
-		ok ->
-		    ok
-	    end
-    end,
-   
+    CreateLogFileResult=case filelib:is_dir(?MainLogDir) of
+			     false->
+				 case file:make_dir(?MainLogDir) of
+				     {error,Reason}->
+					 {error,["Failed to make dir ",Reason,?MODULE,?LINE]};
+				     ok ->
+					 %%---------- create logger files
+					 NodeNodeLogDir=filename:join(?MainLogDir,NodeName),
+					 case log:create_logger(NodeNodeLogDir,?LocalLogDir,?LogFile,?MaxNumFiles,?MaxNumBytes) of
+					     {error,Reason1}->
+						 {error,["Failed to create logger file ",Reason1,?MODULE,?LINE]};
+					     ok ->
+						 ok
+					 end
+				 end;
+			     true ->
+				 %%---------- create logger files
+				 NodeNodeLogDir=filename:join(?MainLogDir,NodeName),
+				 case log:create_logger(NodeNodeLogDir,?LocalLogDir,?LogFile,?MaxNumFiles,?MaxNumBytes) of
+				     {error,Reason1}->
+					 {error,["Failed to create logger file ",Reason1,?MODULE,?LINE]};
+				     ok ->
+					 ok
+				 end
+			 end,
+    
     RdStart=rpc:call(node(),application,start,[rd],2*5000),   
     EtcdStart=rpc:call(node(),application,start,[etcd],2*5000),   
    
     ?LOG_NOTICE("LogStart ",[{log,LogStart}]),
     ?LOG_NOTICE("RdStart ",[{rd,RdStart}]),
     ?LOG_NOTICE("EtcdStart ",[{etcd,EtcdStart}]),
+    ?LOG_NOTICE("CreateLogFileResult ",[CreateLogFileResult]),
+    
     
     ?LOG_NOTICE("Server started ",[?MODULE]),
     
