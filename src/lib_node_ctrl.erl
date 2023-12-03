@@ -46,7 +46,7 @@ allocate( [NodeInfo|T])->
 %%--------------------------------------------------------------------
 create_worker(NodeInfo)->
     delete_worker(NodeInfo),
-    file:del_dir_r(NodeInfo#node_info.worker_dir),
+    false=filelib:is_dir(NodeInfo#node_info.worker_dir),    
     Result=case file:make_dir(NodeInfo#node_info.worker_dir) of
 	       {error,Reson}->
 		   {error,["Failed to create a dir for ",NodeInfo#node_info.worker_dir,Reson,?MODULE,?LINE]};
