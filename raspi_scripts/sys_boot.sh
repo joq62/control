@@ -1,12 +1,3 @@
-[Unit]
-Description= Sys boot to start rpi from reset
-After=network.target
-
-[Service]
-Type=forking
-ExecStart=/home/ubuntu/sys_boot.sh
-PIDFile=/run/my-service.pid   ???
-Restart=on-failure	      ???
-
-[Install]
-WantedBy=multi-user.target
+#!/bin/bash
+/usr/bin/erl -pa /home/ubuntu/control/ebin -sname control_a  -setcookie a -run control start -noinput &
+echo "$!" > /run/sys_boot.pid
