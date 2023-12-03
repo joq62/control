@@ -6,13 +6,12 @@
 %%% @end
 %%% Created : 15 Sep 2023 by c50 <joq62@c50>
 %%%-------------------------------------------------------------------
--module(control_test).
+-module(node_ctrl_test).
 
 -include("node.hrl").
 -include("appl.hrl").
--include("control_config.hrl").
 
-
+-define(InfraSpec,"basic").
 %% API
 -export([start/0]).
 
@@ -30,9 +29,8 @@ start()->
     io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
   
     ok=setup(),
-    ok=control_start(),
-    ok=rd_test(),
-  %  ok=kill_restart_node(),
+    ok=check_nodes_init(),
+    ok=kill_restart_node(),
 
 
     io:format("Test OK !!! ~p~n",[?MODULE]),
@@ -44,68 +42,6 @@ start()->
 %%% Internal functions
 %%%===================================================================
 
-%%--------------------------------------------------------------------
-%% @doc
-%% 
-%% @end
-%%--------------------------------------------------------------------
--define(LocalResourceTuples,[]).
--define(TargetTypes,[adder]).
-
-rd_test()->
-    io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
-
-    [rd:add_local_resource(ResourceType,Resource)||{ResourceType,Resource}<-?LocalResourceTuples],
-    [rd:add_target_resource_type(TargetType)||TargetType<-?TargetTypes],
-    rd:trade_resources(),
-    ok=rd:detect_target_resources(?TargetTypes,?MaxDetectTime),
-    
-    42=rd:call(adder,add,[20,22],5000),
-    
-    NodeInfoList=lists:sort(node_ctrl:node_info_list()),
-    [
-     {node_info,'1_a@c50',"1_a","1_a","c50","a"},
-     {node_info,'2_a@c50',"2_a","2_a","c50","a"},
-     {node_info,'3_a@c50',"3_a","3_a","c50","a"},
-     {node_info,'4_a@c50',"4_a","4_a","c50","a"},
-     {node_info,'5_a@c50',"5_a","5_a","c50","a"},
-     {node_info,'6_a@c50',"6_a","6_a","c50","a"},
-     {node_info,'7_a@c50',"7_a","7_a","c50","a"},
-     {node_info,'8_a@c50',"8_a","8_a","c50","a"},
-     {node_info,'9_a@c50',"9_a","9_a","c50","a"}
-    ]=NodeInfoList,
-    
-    WhichAppl=[{N#node_info.worker_node,rpc:call(N#node_info.worker_node,application,which_applications,[],5000)}||N<-NodeInfoList],
-    
-    io:format("WhichAppl ~p~n",[{WhichAppl,?MODULE,?LINE}]),
-    ok.
-
-
-%%--------------------------------------------------------------------
-%% @doc
-%% 
-%% @end
-%%--------------------------------------------------------------------
-control_start()->
-    io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
-
-    NodeInfoList=lists:sort(node_ctrl:node_info_list()),
-    [
-     {node_info,'1_a@c50',"1_a","1_a","c50","a"},
-     {node_info,'2_a@c50',"2_a","2_a","c50","a"},
-     {node_info,'3_a@c50',"3_a","3_a","c50","a"},
-     {node_info,'4_a@c50',"4_a","4_a","c50","a"},
-     {node_info,'5_a@c50',"5_a","5_a","c50","a"},
-     {node_info,'6_a@c50',"6_a","6_a","c50","a"},
-     {node_info,'7_a@c50',"7_a","7_a","c50","a"},
-     {node_info,'8_a@c50',"8_a","8_a","c50","a"},
-     {node_info,'9_a@c50',"9_a","9_a","c50","a"}
-    ]=NodeInfoList,
-    
-    WhichAppl=[{N#node_info.worker_node,rpc:call(N#node_info.worker_node,application,which_applications,[],5000)}||N<-NodeInfoList],
-    
-    io:format("WhichAppl ~p~n",[{WhichAppl,?MODULE,?LINE}]),
-    ok.
 %%--------------------------------------------------------------------
 %% @doc
 %% 
@@ -206,6 +142,5 @@ test_0()->
 setup()->
     io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
     pong=node_ctrl:ping(),
-    pong=orchestrator:ping(),
    
     ok.

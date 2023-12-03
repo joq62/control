@@ -24,17 +24,17 @@
 %% Returns: List({HostId,Ip,SshPort,Uid,Pwd}
 %% --------------------------------------------------------------------
 start()->
-   
-    ok=dependent_apps:start(),
-    ok=setup(),
+    io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME,?LINE}]),
     
-    ok=node_test:start(),
-    ok=provider_test:start(),
+    ok=setup(),
     ok=control_test:start(),
- 
+ %   ok=orchestrator_test:start(),
+ %   ok=node_ctrl_test:start(),
+ %   ok=appl_ctrl_test:start(),
+
     io:format("Test OK !!! ~p~n",[?MODULE]),
-    timer:sleep(3000),
-    init:stop(),
+%    timer:sleep(1000),
+%    init:stop(),
     ok.
 
 %% --------------------------------------------------------------------
@@ -44,7 +44,7 @@ start()->
 %% --------------------------------------------------------------------
 setup()->
     io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
-  
+    ok=dependent_apps:start(),
     ok=application:start(control),
     pong=control:ping(),
     ok.

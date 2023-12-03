@@ -19,7 +19,8 @@
 -include("log.api").
 
 -define(InfraSpecId,"basic"). 
-
+-include("node.hrl").
+-include("appl.hrl").
 
 
 -define(BuildPath,"ebin").
@@ -73,7 +74,10 @@
 -define(SERVER, ?MODULE).
 
 %% Record and Data
--record(state, {deployments}).
+-record(state, {
+		infra_spec,
+		deployment_spec,
+		deployments}).
 
 %% Table or Data models
 %% ClusterSpec: Workers [{HostName,NumWorkers}],CookieStr,MainDir, 
@@ -90,11 +94,66 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+%% DeploymentLog 
+%% HealthLog
+
 %%--------------------------------------------------------------------
 %% @doc
-%% This function is an user interface to be complementary to automated
-%% load and start a provider at this host.
-%% In v1.0.0 the deployment will not be persistant   
+%% create_deployment(ApplicationSpec)-> {ok,DeploymentId}|{error,Reason}
+%% 1) Allocate a free worker node on the host
+%% 2) Load needed infrastructure applications
+%%    - log
+%%    - resource discovery 
+%% 3) start needed infrastructure applications
+%%    - log
+%%    - resource discovery
+%% 4) Load wanted application
+%%       - resource discovery 
+%% 5) start wanted applications 
+%%  
+%% deploy(ApplicationSpec)-> {ok,DeploymentId}|{error,Reason}
+%% Data (ApplicationSpec, worker node, running applications, DeploymentId,time_of_creation)
+%% State deployed_applications 
+%% DeploymentLog
+%% @end
+%%--------------------------------------------------------------------
+-spec create_deployment(ApplicationSpec :: string()) -> {ok,DeploymentId :: integer()} | 
+	  {error, Error :: term()}.
+create_deployment(ApplicationSpec) ->
+    gen_server:call(?SERVER,{create_deployment,ApplicationSpec},infinity).
+
+
+
+
+
+%% delete_application(DeploymentId)-> ok | {error,Reason}
+%% 1) stop the application
+%% 2) unload the application
+%% 3) delete application directory
+%% Data (ApplicationSpec, worker node, running applications, DeploymentId,time_of_creation)
+%% State deployed_applications 
+%% DeploymentLog 
+
+%% delete_node(Node) -> ok | {error,Reason}
+%% 1) stop the node
+%% 2) delete node dir
+%% Data (ApplicationSpec, worker node, running applications, DeploymentId,time_of_creation)
+%% State deployed_applications 
+%% DeploymentLog 
+
+
+
+
+
+
+
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Loads and starts a provider on a free worker node.
+%% 1) It allocates a free worker 
+%% 2) Loads the 
 %% @end
 %%--------------------------------------------------------------------
 -spec load_start(ProviderSpec :: string()) -> {ok,DeploymentId :: integer()} | 
@@ -121,6 +180,11 @@ load_start(ProviderSpec) ->
 
 stop_unload(DeploymentId) ->
     gen_server:call(?SERVER,{stop_unload,DeploymentId},infinity).
+
+
+%% xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+
 %--------------------------------------------------------------------
 %% @doc
 %% reload(DeploymentId) will stop_unload and load and start the provider   
@@ -196,7 +260,7 @@ load_provider(Deployment) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% @spec
+%% 
 %% @end
 %%--------------------------------------------------------------------
 start()->
@@ -218,19 +282,12 @@ start_link() ->
 %%%===================================================================
 %%--------------------------------------------------------------------
 %% @doc
-%% @spec
+%% 
 %% @end
 %%--------------------------------------------------------------------
-
-
-
-%%--------------------------------------------------------------------
-%% @doc
-%% @spec
-%% @end
-%%--------------------------------------------------------------------
+-spec ping() -> pong | Error::term().
 ping()-> 
-    gen_server:call(?SERVER, {ping},infinity).    
+    gen_server:call(?SERVER, {ping},infinity).
 
 %%--------------------------------------------------------------------
 %% @private
@@ -245,26 +302,15 @@ ping()->
 	  ignore.
 init([]) ->
 
-    %% Connect nodes
-    ThisNode=node(),
-    {ok,ConnecNodes}=etcd_infra:get_connect_nodes(?InfraSpecId),
-    ConnectR=[{net_adm:ping(N),N}||N<-ConnecNodes],
-	
- %% Announce to resource_discovery
-    Interval=10*1000,
-    Iterations=10,
-    true=check_rd_running(Interval,Iterations,false),
-    [rd:add_local_resource(ResourceType,Resource)||{ResourceType,Resource}<-?LocalResourceTuples],
-    [rd:add_target_resource_type(TargetType)||TargetType<-?TargetTypes],
-    rd:trade_resources(),
-      
-    ok=control_provider_server:set_wanted_state(?PermanentDeploymentSpec),
+     
+    ?LOG_NOTICE("Server started ",[?MODULE]),
     
-    
-    ?LOG_NOTICE("Server started ",[]),
-    
+    TimeOut=0,
  
-    {ok, #state{deployments=[]}}.
+    {ok, #state{
+	    infra_spec=?InfraSpec,
+	    deployments=[]},
+     TimeOut}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -389,7 +435,38 @@ handle_cast(_Request, State) ->
 	  {noreply, NewState :: term(), Timeout :: timeout()} |
 	  {noreply, NewState :: term(), hibernate} |
 	  {stop, Reason :: normal | term(), NewState :: term()}.
-handle_info(_Info, State) ->
+
+handle_info(timeout, State) ->
+    
+    %% 1. Connect nodes
+    
+    ThisNode=node(),
+    {ok,ConnecNodes}=etcd_infra:get_connect_nodes(?InfraSpecId),
+    ConnectR=[{net_adm:ping(N),N}||N<-ConnecNodes],
+	
+    %% 2. Announce to resource_discovery
+    Interval=10*1000,
+    Iterations=10,
+    true=check_rd_running(Interval,Iterations,false),
+    [rd:add_local_resource(ResourceType,Resource)||{ResourceType,Resource}<-?LocalResourceTuples],
+    [rd:add_target_resource_type(TargetType)||TargetType<-?TargetTypes],
+    rd:trade_resources(),
+    ok=rd:detect_target_resources(?TargetTypes,?MaxDetectTime),
+   
+    %%---- start_orchestration
+
+    StartOrchestratorResult=orchestrator:start_orchestrate(?DeploymentSpec),
+    ?LOG_NOTICE("StartOrchestratorResult ",[StartOrchestratorResult]),
+    
+    %%---- 
+    
+	
+    
+    
+    {noreply, State};
+
+handle_info(Info, State) ->
+    glurk=Info,
     {noreply, State}.
 
 %%--------------------------------------------------------------------

@@ -6,12 +6,12 @@
 %%% @end
 %%% Created : 15 Sep 2023 by c50 <joq62@c50>
 %%%-------------------------------------------------------------------
--module(control_test).
+-module(orchestrator_test).
 
 -include("node.hrl").
 -include("appl.hrl").
--include("control_config.hrl").
 
+-define(DeploymentSpec,"test_c50").
 
 %% API
 -export([start/0]).
@@ -30,8 +30,8 @@ start()->
     io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
   
     ok=setup(),
-    ok=control_start(),
-    ok=rd_test(),
+    ok=orchestrator_start(),
+  %  ok=check_nodes_init(),
   %  ok=kill_restart_node(),
 
 
@@ -49,45 +49,18 @@ start()->
 %% 
 %% @end
 %%--------------------------------------------------------------------
--define(LocalResourceTuples,[]).
--define(TargetTypes,[adder]).
-
-rd_test()->
+orchestrator_start()->
     io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
 
-    [rd:add_local_resource(ResourceType,Resource)||{ResourceType,Resource}<-?LocalResourceTuples],
-    [rd:add_target_resource_type(TargetType)||TargetType<-?TargetTypes],
-    rd:trade_resources(),
-    ok=rd:detect_target_resources(?TargetTypes,?MaxDetectTime),
+    {ok,WantedState}=lib_orchestrator:wanted_state(?DeploymentSpec),
+    ["adder","divi"]=lists:sort(WantedState),
     
-    42=rd:call(adder,add,[20,22],5000),
-    
-    NodeInfoList=lists:sort(node_ctrl:node_info_list()),
-    [
-     {node_info,'1_a@c50',"1_a","1_a","c50","a"},
-     {node_info,'2_a@c50',"2_a","2_a","c50","a"},
-     {node_info,'3_a@c50',"3_a","3_a","c50","a"},
-     {node_info,'4_a@c50',"4_a","4_a","c50","a"},
-     {node_info,'5_a@c50',"5_a","5_a","c50","a"},
-     {node_info,'6_a@c50',"6_a","6_a","c50","a"},
-     {node_info,'7_a@c50',"7_a","7_a","c50","a"},
-     {node_info,'8_a@c50',"8_a","8_a","c50","a"},
-     {node_info,'9_a@c50',"9_a","9_a","c50","a"}
-    ]=NodeInfoList,
-    
-    WhichAppl=[{N#node_info.worker_node,rpc:call(N#node_info.worker_node,application,which_applications,[],5000)}||N<-NodeInfoList],
-    
-    io:format("WhichAppl ~p~n",[{WhichAppl,?MODULE,?LINE}]),
-    ok.
-
-
-%%--------------------------------------------------------------------
-%% @doc
-%% 
-%% @end
-%%--------------------------------------------------------------------
-control_start()->
-    io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
+    {ok,
+     [
+      {error,["divi",[eexist,"divi",lib_etcd_application,_]]},
+      {ok,{deployment_info,{node_info,'9_a@c50',"9_a","9_a","c50","a"},{appl_info,"adder","9_a/adder"}}}
+     ]
+    }=orchestrator:start_orchestrate(?DeploymentSpec),
 
     NodeInfoList=lists:sort(node_ctrl:node_info_list()),
     [
@@ -101,7 +74,6 @@ control_start()->
      {node_info,'8_a@c50',"8_a","8_a","c50","a"},
      {node_info,'9_a@c50',"9_a","9_a","c50","a"}
     ]=NodeInfoList,
-    
     WhichAppl=[{N#node_info.worker_node,rpc:call(N#node_info.worker_node,application,which_applications,[],5000)}||N<-NodeInfoList],
     
     io:format("WhichAppl ~p~n",[{WhichAppl,?MODULE,?LINE}]),

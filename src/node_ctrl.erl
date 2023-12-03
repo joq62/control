@@ -2,12 +2,12 @@
 %%% @author c50 <joq62@c50>
 %%% @copyright (C) 2023, c50
 %%% @doc
-%%%
+%%% Data: Nodename,cookie, node, status(allocated,free,stopped)
 %%% @end
 %%% Created : 18 Apr 2023 by c50 <joq62@c50>
 %%%-------------------------------------------------------------------
--module(provider).
- 
+-module(node_ctrl).
+
 -behaviour(gen_server).
 %%--------------------------------------------------------------------
 %% Include 
@@ -15,17 +15,30 @@
 %%--------------------------------------------------------------------
 
 -include("log.api").
- 
+-include("node.hrl").
+
+-include("control_config.hrl").
+-include("infra_appls.hrl").
+
 
 %% API
+-export([
+	 running_worker_nodes/0,
+	 node_info_list/0,
+	 
+	 create_workers/0,
+	 create_worker/2,
+	 delete_worker/1,
+	 allocate/0
+	]).
+
+%% admin
+
+
+
 
 -export([
-	 load_provider/1,
-	 start_provider/1,
-	 stop_provider/1,
-	 unload_provider/1,
-	 is_alive/1,
-
+	 kill/0,
 	 ping/0,
 	 stop/0
 	]).
@@ -37,64 +50,101 @@
 	 terminate/2, code_change/3, format_status/2]).
 
 -define(SERVER, ?MODULE).
+		     
+-record(state, {
+		running_worker_nodes,
+		node_info_list,
+		num_workers,
+		hostname,
+		cookie_str
 
--record(state, {}).
+	       }).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
-%%--------------------------------------------------------------------
-%% @doc
-%% Get all information related to host HostName  
-%% @end
-%%--------------------------------------------------------------------
--spec load_provider(DeploymentRecord :: term()) -> ok | {error, Error :: term()}.
-
-load_provider(DeploymentRecord)->
-    gen_server:call(?SERVER, {load_provider,DeploymentRecord},infinity).
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Get all information related to host HostName  
-%% @end
-%%--------------------------------------------------------------------
--spec start_provider(DeploymentRecord :: term()) -> ok | {error, Error :: term()}.
-
-start_provider(DeploymentRecord)->
-    gen_server:call(?SERVER, {start_provider,DeploymentRecord},infinity).
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Get all information related to host HostName  
-%% @end
-%%--------------------------------------------------------------------
--spec stop_provider(DeploymentRecord :: term()) -> ok | {error, Error :: term()}.
-
-stop_provider(DeploymentRecord)->
-    gen_server:call(?SERVER, {stop_provider,DeploymentRecord},infinity).
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Get all information related to host HostName  
-%% @end
-%%--------------------------------------------------------------------
--spec unload_provider(DeploymentRecord :: term()) -> ok | {error, Error :: term()}.
-
-unload_provider(DeploymentRecord)->
-    gen_server:call(?SERVER, {unload_provider,DeploymentRecord},infinity).
 
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Get all information related to host HostName  
+%%  
+%% 
 %% @end
 %%--------------------------------------------------------------------
--spec is_alive(DeploymentRecord :: term()) -> IsDeployed :: boolean() | {error, Error :: term()}.
+-spec  running_worker_nodes() -> {NodeInfoList :: term()} | 
+	  {error, Error :: term()}.
+running_worker_nodes() ->
+    gen_server:call(?SERVER,{running_worker_nodes},infinity).
 
-is_alive(DeploymentRecord)->
-    gen_server:call(?SERVER, {is_alive,DeploymentRecord},infinity).
+%%--------------------------------------------------------------------
+%% @doc
+%%  
+%% 
+%% @end
+%%--------------------------------------------------------------------
+-spec  node_info_list() -> {NodeInfoList :: term()} | 
+	  {error, Error :: term()}.
+node_info_list() ->
+    gen_server:call(?SERVER,{node_info_list},infinity).
 
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Allocate the node with least num of running applications
+%% 
+%% 
+%% @end
+%%--------------------------------------------------------------------
+-spec  allocate() -> {NodeInfo :: term()} | 
+	  {error, Error :: term()}.
+allocate() ->
+    gen_server:call(?SERVER,{allocate},infinity).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Create a worker with a node name = NodeName and node dir=NodeDir. It's implict tha
+%% the worker starts at current host and has the same cookie.
+%% If the worker exists it will be killed and the dir will be deleted
+%%  
+%% @end
+%%--------------------------------------------------------------------
+-spec  create_workers() -> {ok,ListOfWorkers :: term()} | 
+	  {error, Error :: term()}.
+create_workers() ->
+    gen_server:call(?SERVER,{create_workers},infinity).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Create a worker with a node name = NodeName and node dir=NodeDir. It's implict tha
+%% the worker starts at current host and has the same cookie.
+%% If the worker exists it will be killed and the dir will be deleted
+%%  
+%% @end
+%%--------------------------------------------------------------------
+-spec  create_worker(NodeName :: string(), NodeDir :: string()) -> {ok,Node :: node()} | 
+	  {error, Error :: term()}.
+create_worker(NodeName, NodeDir) ->
+    gen_server:call(?SERVER,{create_worker,NodeName, NodeDir},infinity).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Worker vm is stopped and worker dir is deleted
+%%  
+%% @end
+%%--------------------------------------------------------------------
+-spec  delete_worker(NodeName :: string()) -> {ok,Node :: node()} | 
+	  {error, Error :: term()}.
+delete_worker(NodeName) ->
+    gen_server:call(?SERVER,{delete_worker,NodeName},infinity).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% 
+%% @end
+%%--------------------------------------------------------------------
+kill()->
+    gen_server:call(?SERVER, {kill},infinity).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -104,6 +154,8 @@ is_alive(DeploymentRecord)->
 -spec ping() -> pong | Error::term().
 ping()-> 
     gen_server:call(?SERVER, {ping},infinity).
+
+
 %%--------------------------------------------------------------------
 %% @doc
 %% Starts the server
@@ -117,7 +169,8 @@ start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 
-stop()-> gen_server:call(?SERVER, {stop},infinity).
+%stop()-> gen_server:cast(?SERVER, {stop}).
+stop()-> gen_server:stop(?SERVER).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -136,10 +189,24 @@ stop()-> gen_server:call(?SERVER, {stop},infinity).
 	  ignore.
 
 init([]) ->
+  
+    {ok,HostName}=net:gethostname(),
+    {ok,NumWorkers}=etcd_infra:get_num_workers(?InfraSpec,HostName),
+    {ok,CookieStr}=etcd_infra:get_cookie_str(?InfraSpec),
+    NodeInfoList=lib_node_ctrl:create_node_info(NumWorkers,HostName,CookieStr),
     
+  %  io:format("ListOfNodeInfo ~p~n",[{ListOfNodeInfo,?MODULE,?LINE}]),
+    
+     
     ?LOG_NOTICE("Server started ",[node()]),
-    {ok, #state{}}.
-
+    {ok, #state{
+	    running_worker_nodes=[],
+	    node_info_list=NodeInfoList,
+	    num_workers=NumWorkers,
+	    hostname=HostName,
+	    cookie_str=CookieStr
+	    
+	   }}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -158,24 +225,63 @@ init([]) ->
 	  {stop, Reason :: term(), NewState :: term()}.
 
 
-handle_call({load_provider,DeploymentRecord}, _From, State) ->
-    Reply=lib_control_provider:load_provider(DeploymentRecord),
+
+
+handle_call({create_worker,NodeName,WorkerDir}, _From, State) ->
+    WorkerNode=list_to_atom(NodeName++"@"++State#state.hostname),    
+    NodeInfo=#node_info{worker_node=WorkerNode,
+			      worker_dir=WorkerDir,
+			      nodename=NodeName,
+			      hostname=State#state.hostname,
+			      cookie_str=State#state.cookie_str},
+    
+    Reply=case lib_node_ctrl:create_worker(NodeInfo) of
+	      {error,Reason}->
+		  NewState=State,
+		  {error,Reason};
+	      {ok,NewNodeInfo}->
+		  erlang:monitor_node(NewNodeInfo#node_info.worker_node,true),
+		  NewRunningWorkerNodes=[NewNodeInfo|State#state.running_worker_nodes],
+		  NewState=State#state{running_worker_nodes=NewRunningWorkerNodes},
+		  {ok,NodeInfo}
+	  end,
+    {reply, Reply, NewState};
+
+
+handle_call({delete_worker,NodeInfo}, _From, State) ->
+    Reply=case lists:member(NodeInfo,State#state.running_worker_nodes) of
+	      false->
+		  NewState=State,
+		  {error,["NodeInfo doesnt exists inrunning_worker_nodes",NodeInfo,State#state.running_worker_nodes,?MODULE,?LINE]};
+	      true->
+		  erlang:monitor_node(NodeInfo#node_info.worker_node,false),
+		  lib_node_ctrl:delete_worker(NodeInfo),
+		  NewRunningWorkerNodes=lists:delete(NodeInfo,State#state.running_worker_nodes),
+		  NewState=State#state{running_worker_nodes=NewRunningWorkerNodes},
+		  ok
+	  end,
+
+    {reply, Reply, NewState};
+
+
+handle_call({allocate}, _From, State) ->
+    Reply=case lib_node_ctrl:allocate(State#state.running_worker_nodes) of
+	      {error,Reason}->
+		  NewState=State,
+		  {error,Reason};
+	      {ok,NodeInfo,NewRunningWorkerNodes}->
+		  NewState=State#state{running_worker_nodes=NewRunningWorkerNodes},
+		  {ok,NodeInfo}
+	  end,
+    
+    {reply, Reply, NewState};
+
+handle_call({node_info_list}, _From, State) ->
+    Reply=State#state.node_info_list,
     {reply, Reply, State};
 
-handle_call({start_provider,DeploymentRecord}, _From, State) ->
-    Reply=lib_control_provider:start_provider(DeploymentRecord),
-    {reply, Reply, State};
-
-handle_call({stop_provider,DeploymentRecord}, _From, State) ->
-    Reply=lib_control_provider:stop_provider(DeploymentRecord),
-    {reply, Reply, State};
-
-handle_call({unload_provider,DeploymentRecord}, _From, State) ->
-    Reply=lib_control_provider:unload_provider(DeploymentRecord),
-    {reply, Reply, State};
-
-handle_call({is_alive,DeploymentRecord}, _From, State) ->
-    Reply=lib_control_provider:is_alive(DeploymentRecord),
+handle_call({running_worker_nodes}, _From, State) ->
+    Reply=State#state.running_worker_nodes,
     {reply, Reply, State};
 
 handle_call({ping}, _From, State) ->
@@ -193,6 +299,10 @@ handle_call(UnMatchedSignal, From, State) ->
 %% Handling cast messages
 %% @end
 %%--------------------------------------------------------------------
+handle_cast({stop}, State) ->
+    
+    {stop,normal,ok,State};
+
 handle_cast(UnMatchedSignal, State) ->
     io:format("unmatched_signal ~p~n",[{UnMatchedSignal,?MODULE,?LINE}]),
     {noreply, State}.
@@ -208,6 +318,31 @@ handle_cast(UnMatchedSignal, State) ->
 	  {noreply, NewState :: term(), Timeout :: timeout()} |
 	  {noreply, NewState :: term(), hibernate} |
 	  {stop, Reason :: normal | term(), NewState :: term()}.
+
+handle_info({nodedown,Node}, State) ->
+    io:format("nodedown,Node  ~p~n",[{Node,?MODULE,?LINE}]),
+    erlang:monitor_node(Node,false),
+    case node_info:find(State#state.running_worker_nodes,Node) of
+	false->
+	    NewState=State,
+	    {error,["Node doesnt exist i running_worker_nodes ",Node,?MODULE,?LINE]};
+	NodeInfo->
+	    case lib_node_ctrl:create_worker(NodeInfo) of
+		{error,Reason}->
+		    NewState=State,
+		    {error,Reason};
+		{ok,NewNodeInfo}->
+		    io:format("NewNodeInfo  ~p~n",[{NewNodeInfo,?MODULE,?LINE}]),
+		    erlang:monitor_node(NewNodeInfo#node_info.worker_node,true),
+		    RunningDeleted=lists:delete(NodeInfo,State#state.running_worker_nodes),
+		    NewRunningList=[NewNodeInfo|RunningDeleted],
+		    NewState=State#state{running_worker_nodes=NewRunningList}
+			
+	    end
+    end,
+    {noreply, NewState};
+
+
 handle_info(Info, State) ->
     io:format("unmatched_signal ~p~n",[{Info,?MODULE,?LINE}]),
     {noreply, State}.
