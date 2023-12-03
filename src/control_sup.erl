@@ -30,6 +30,8 @@ init([]) ->
                  intensity => 0,
                  period => 1},
     ChildSpecs = [
+		  #{id => system_boot,               
+		    start => {system_boot,start_link,[]}},
 		  #{id => node_ctrl,               
 		    start => {node_ctrl,start_link,[]}},
 		  #{id => appl_ctrl,               
