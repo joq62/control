@@ -13,6 +13,7 @@ start(_StartType, _StartArgs) ->
     ok=application:start(log),   
     ok=application:start(rd),    
     ok=application:start(etcd),
+    timer:sleep(5000),
     control_sup:start_link().
 
 stop(_State) ->
