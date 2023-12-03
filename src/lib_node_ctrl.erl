@@ -10,7 +10,7 @@
 
 
 -include("node.hrl").
-
+-include("log.api").
 -define(Iterations,100).
 %% API
 -export([
@@ -46,8 +46,11 @@ allocate( [NodeInfo|T])->
 %%--------------------------------------------------------------------
 create_worker(NodeInfo)->
     delete_worker(NodeInfo),
+    WorkerDir=NodeInfo#node_info.worker_dir,
+    ?LOG_NOTICE("WorkerDir",[WorkerDir]),
+    file:del_dir_r(WorkerDir),
     false=filelib:is_dir(NodeInfo#node_info.worker_dir),    
-    Result=case file:make_dir(NodeInfo#node_info.worker_dir) of
+    Result=case file:make_dir(WorkerDir) of
 	       {error,Reson}->
 		   {error,["Failed to create a dir for ",NodeInfo#node_info.worker_dir,Reson,?MODULE,?LINE]};
 	       ok ->
