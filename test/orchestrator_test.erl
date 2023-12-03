@@ -11,7 +11,8 @@
 -include("node.hrl").
 -include("appl.hrl").
 
--define(InfraSpec,"basic").
+-define(DeploymentSpec,"test_c50").
+
 %% API
 -export([start/0]).
 
@@ -51,7 +52,17 @@ start()->
 orchestrator_start()->
     io:format("Start ~p~n",[{?MODULE,?FUNCTION_NAME}]),
 
-    {ok,NodeInfoList}=orchestrator:start_orchestrate(),
+    {ok,WantedState}=lib_orchestrator:wanted_state(?DeploymentSpec),
+    ["adder","divi"]=lists:sort(WantedState),
+    
+    {ok,
+     [
+      {error,["divi",[eexist,"divi",lib_etcd_application,_]]},
+      {ok,{deployment_info,{node_info,'9_a@c50',"9_a","9_a","c50","a"},{appl_info,"adder","9_a/adder"}}}
+     ]
+    }=orchestrator:start_orchestrate(?DeploymentSpec),
+
+    NodeInfoList=lists:sort(node_ctrl:node_info_list()),
     [
      {node_info,'1_a@c50',"1_a","1_a","c50","a"},
      {node_info,'2_a@c50',"2_a","2_a","c50","a"},
@@ -63,8 +74,7 @@ orchestrator_start()->
      {node_info,'8_a@c50',"8_a","8_a","c50","a"},
      {node_info,'9_a@c50',"9_a","9_a","c50","a"}
     ]=NodeInfoList,
-    
-    WhichAppl=[rpc:call(N#node_info.worker_node,application,which_applications,[],5000)||N<-NodeInfoList],
+    WhichAppl=[{N#node_info.worker_node,rpc:call(N#node_info.worker_node,application,which_applications,[],5000)}||N<-NodeInfoList],
     
     io:format("WhichAppl ~p~n",[{WhichAppl,?MODULE,?LINE}]),
     ok.

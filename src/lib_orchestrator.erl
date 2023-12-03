@@ -12,13 +12,60 @@
 %% API
 -export([
 	 create_workers/0,
-	 load_start_infra/2
+	 load_start_infra/2,
+	 load_start/2,
+
+	 wanted_state/1,
+	 load_start_wanted_state/1
 	 
 	]).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
+%%--------------------------------------------------------------------
+%% @doc
+%% 
+%% @end
+%%--------------------------------------------------------------------
+load_start_wanted_state(LocalWantedAppls)->
+    load_start_wanted_state(LocalWantedAppls,[]).
+
+load_start_wanted_state([],Acc)->
+    Acc;
+load_start_wanted_state([ApplSpec|T],Acc)->    
+    Result=case node_ctrl:allocate() of
+	       {error,Reason}->
+		   {error,Reason};	     
+	       {ok,NodeInfo}->
+		   case load_start(ApplSpec,NodeInfo) of
+		       {error,Reason}->
+			   {error,Reason};	     
+		       {ok,DeploymentInfo}->
+			   {ok,DeploymentInfo}
+		   end
+	   end,
+    load_start_wanted_state(T,[Result|Acc]).    
+		
+
+    
+	    
+
+%%--------------------------------------------------------------------
+%% @doc
+%% 
+%% @end
+%%--------------------------------------------------------------------
+wanted_state(DeploymentSpec)->
+   case etcd_deployment:get_deployment_list(DeploymentSpec) of
+       {error,Reason}->
+	   {error,Reason};
+        {ok,DeploymentList}->
+	   {ok,HostName}=net:gethostname(),
+	   LocalDeploymentList=[ApplSpec||{ApplSpec,XHostName}<-DeploymentList,
+					  HostName=:=XHostName],
+	   {ok,LocalDeploymentList}
+   end.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -80,10 +127,13 @@ create_workers()->
 		   end
 	   end,
     Result.
-					  
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
+		
+
+%%--------------------------------------------------------------------
+%% @doc
+%% load and start an application on a specific node 
+%% @end
+%%--------------------------------------------------------------------			  
 load_start(ApplSpec,NodeInfo)->
     case appl_ctrl:load_appl(NodeInfo,ApplSpec) of
 	{error,Reason}->
@@ -107,3 +157,8 @@ load_start(ApplSpec,NodeInfo)->
 		    end
 	    end
     end.
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+

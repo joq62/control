@@ -30,7 +30,7 @@
 <tr><td valign="top"><a href="#ping-0">ping/0</a></td><td>.</td></tr>
 <tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>
   Starts the server.</td></tr>
-<tr><td valign="top"><a href="#start_orchestrate-0">start_orchestrate/0</a></td><td>  
+<tr><td valign="top"><a href="#start_orchestrate-1">start_orchestrate/1</a></td><td>  
 Allocate the node with least num of running applications.</td></tr>
 <tr><td valign="top"><a href="#stop-0">stop/0</a></td><td></td></tr>
 </table>
@@ -86,9 +86,9 @@ Allocate the node with least num of running applications.</td></tr>
 </div><p>
   Starts the server</p>
 
-<h3 class="function"><a name="start_orchestrate-0">start_orchestrate/0</a></h3>
+<h3 class="function"><a name="start_orchestrate-1">start_orchestrate/1</a></h3>
 <div class="spec">
-<p><tt>start_orchestrate() -&gt; ok | {error, Error::term()}</tt><br></p>
+<p><tt>start_orchestrate(DeploymentSpec::string()) -&gt; ok | {error, Error::term()}</tt><br></p>
 <p> </p>
 </div><p><p>  
 Allocate the node with least num of running applications</p>

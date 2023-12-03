@@ -24,7 +24,7 @@
 
 %% API
 -export([
-	 start_orchestrate/0,
+	 start_orchestrate/1,
 	 create_workers/0,
 	 create_worker/2,
 	 delete_worker/1
@@ -50,6 +50,7 @@
 -define(SERVER, ?MODULE).
 		     
 -record(state, {
+		wanted_state,
 		deployments
 		
 	       }).
@@ -65,10 +66,10 @@
 %% 
 %% @end
 %%--------------------------------------------------------------------
--spec  start_orchestrate() -> ok | 
+-spec  start_orchestrate(DeploymentSpec :: string()) -> ok | 
 	  {error, Error :: term()}.
-start_orchestrate() ->
-    gen_server:call(?SERVER,{start_orchestrate},infinity).
+start_orchestrate(DeploymentSpec) ->
+    gen_server:call(?SERVER,{start_orchestrate,DeploymentSpec},infinity).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -172,6 +173,7 @@ init([]) ->
      
     ?LOG_NOTICE("Server started ",[node()]),
     {ok, #state{
+	    wanted_state=[],
 	    deployments=[]
 	    
 	   }}.
@@ -193,8 +195,7 @@ init([]) ->
 	  {stop, Reason :: term(), NewState :: term()}.
 
 
-handle_call({start_orchestrate}, _From, State) ->
-    
+handle_call({start_orchestrate,DeploymentSpec}, _From, State) ->
     Reply = case lib_orchestrator:create_workers() of
 		{error,Reason}->
 		    NewState=State,
@@ -205,9 +206,26 @@ handle_call({start_orchestrate}, _From, State) ->
 			    NewState=State,
 			    {error,Reason};
 			{ok,InfraDeployments}->
-			    NewDeployments=lists:append(InfraDeployments,State#state.deployments),
-			    NewState=State#state{deployments=NewDeployments},
-			    {ok,RunningWorkers}
+			    case lib_orchestrator:wanted_state(DeploymentSpec) of
+				{error,Reason}->
+				    NewDeployments=lists:append(InfraDeployments,State#state.deployments),
+				    NewState=State#state{deployments=NewDeployments},	    
+				    {error,Reason};
+				{ok,LocalWantedAppls}->
+				    case lib_orchestrator:load_start_wanted_state(LocalWantedAppls) of
+					{error,Reason}->
+					    NewDeployments=lists:append(InfraDeployments,State#state.deployments),
+					    NewState=State#state{deployments=NewDeployments,
+								 wanted_state=LocalWantedAppls},	    
+					    {error,Reason};
+					LoadStartResult->
+					    OkStart=[DeploymentInfo||{ok,DeploymentInfo}<-LoadStartResult],
+					    NewDeployments=lists:append([OkStart,InfraDeployments,State#state.deployments]),
+					    NewState=State#state{deployments=NewDeployments,
+								 wanted_state=LocalWantedAppls},	    
+					    {ok,LoadStartResult}
+				    end
+			    end
 		    end
 	    end,
     {reply, Reply, NewState};
