@@ -219,6 +219,9 @@ handle_call({start_orchestrate,DeploymentSpec}, _From, State) ->
 								 wanted_state=LocalWantedAppls},	    
 					    {error,Reason};
 					LoadStartResult->
+					    
+					    ?LOG_NOTICE("LoadStartResult ",[LoadStartResult]),
+					    
 					    OkStart=[DeploymentInfo||{ok,DeploymentInfo}<-LoadStartResult],
 					    NewDeployments=lists:append([OkStart,InfraDeployments,State#state.deployments]),
 					    NewState=State#state{deployments=NewDeployments,
