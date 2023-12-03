@@ -198,7 +198,7 @@ init([]) ->
   %  io:format("ListOfNodeInfo ~p~n",[{ListOfNodeInfo,?MODULE,?LINE}]),
     
      
-    ?LOG_NOTICE("Server started ",[node()]),
+    ?LOG_NOTICE("Server started ",[?MODULE]),
     {ok, #state{
 	    running_worker_nodes=[],
 	    node_info_list=NodeInfoList,

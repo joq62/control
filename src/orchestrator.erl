@@ -171,7 +171,7 @@ stop()-> gen_server:stop(?SERVER).
 init([]) ->
       
      
-    ?LOG_NOTICE("Server started ",[node()]),
+    ?LOG_NOTICE("Server started ",[?MODULE]),
     {ok, #state{
 	    wanted_state=[],
 	    deployments=[]

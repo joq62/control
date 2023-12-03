@@ -165,7 +165,7 @@ stop()-> gen_server:call(?SERVER, {stop},infinity).
 init([]) ->
     
     
-    ?LOG_NOTICE("Server started ",[]),
+    ?LOG_NOTICE("Server started ",[?MODULE]),
     {ok, #state{
 	    monitored_nodes=[],
 	    deployment_info_list=[]

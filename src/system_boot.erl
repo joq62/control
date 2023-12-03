@@ -10,6 +10,9 @@
 
 -behaviour(gen_server).
 
+
+-include("control_config.hrl").
+-include("log.api").
 %% API
 -export([start_link/0]).
 
@@ -54,10 +57,38 @@ start_link() ->
 	  ignore.
 init([]) ->
     process_flag(trap_exit, true),
-    application:start(log),   
-    application:start(rd),    
-    application:start(etcd),
+    ok=application:start(log),   
+    %%-- init log
+    [NodeName,_]=string:tokens(atom_to_list(node()),"@"),
+    case filelib:is_dir(?MainLogDir) of
+	false->
+	    case file:make_dir(?MainLogDir) of
+		{error,Reason}->
+		    {error,["Failed to make dir ",Reason,?MODULE,?LINE]};
+		ok ->
+		    %%---------- create logger files
+   		    NodeNodeLogDir=filename:join(?MainLogDir,NodeName),
+		    case log:create_logger(NodeNodeLogDir,?LocalLogDir,?LogFile,?MaxNumFiles,?MaxNumBytes) of
+			{error,Reason1}->
+			    {error,["Failed to create logger file ",Reason1,?MODULE,?LINE]};
+			ok ->
+			    ok
+		    end
+	    end;
+	true ->
+	    %%---------- create logger files
+	    NodeNodeLogDir=filename:join(?MainLogDir,NodeName),
+	    case log:create_logger(NodeNodeLogDir,?LocalLogDir,?LogFile,?MaxNumFiles,?MaxNumBytes) of
+		{error,Reason1}->
+		    {error,["Failed to create logger file ",Reason1,?MODULE,?LINE]};
+		ok ->
+		    ok
+	    end
+    end,
+    ok=application:start(rd),    
+    ok=application:start(etcd),
     
+    ?LOG_NOTICE("Server started ",[?MODULE]),
     
     {ok, #state{}}.
 

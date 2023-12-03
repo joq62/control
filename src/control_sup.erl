@@ -38,7 +38,7 @@ init([]) ->
 		    start => {appl_ctrl,start_link,[]}},
 		  #{id =>orchestrator ,               
 		    start => {orchestrator,start_link,[]}},
-		  #{id => control_provider_server,               
+		  #{id => control,               
 		    start => {control,start_link,[]}}
 		 ],
     {ok, {SupFlags, ChildSpecs}}.

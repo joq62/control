@@ -2,7 +2,9 @@
 %%% @author c50 <joq62@c50>
 %%% @copyright (C) 2023, c50
 %%% @doc
-%%% 
+%%% Control starts and handles applications log,rd, etcd and  system_boot
+%%% node_ctrl,    
+%%% appl_ctrl,orchestrator and control
 %%% @end
 %%% Created :  2 Jun 2023 by c50 <joq62@c50>
 %%%-------------------------------------------------------------------
@@ -302,36 +304,6 @@ ping()->
 	  ignore.
 init([]) ->
 
-     
-    %%-- init log
-    [NodeName,_]=string:tokens(atom_to_list(node()),"@"),
-    case filelib:is_dir(?MainLogDir) of
-	false->
-	    case file:make_dir(?MainLogDir) of
-		{error,Reason}->
-		    {error,["Failed to make dir ",Reason,?MODULE,?LINE]};
-		ok ->
-		    %%---------- create logger files
-   		    NodeNodeLogDir=filename:join(?MainLogDir,NodeName),
-		    case log:create_logger(NodeNodeLogDir,?LocalLogDir,?LogFile,?MaxNumFiles,?MaxNumBytes) of
-			{error,Reason1}->
-			    {error,["Failed to create logger file ",Reason1,?MODULE,?LINE]};
-			ok ->
-			    ok
-		    end
-	    end;
-	true ->
-	    %%---------- create logger files
-	    NodeNodeLogDir=filename:join(?MainLogDir,NodeName),
-	    case log:create_logger(NodeNodeLogDir,?LocalLogDir,?LogFile,?MaxNumFiles,?MaxNumBytes) of
-		{error,Reason1}->
-		    {error,["Failed to create logger file ",Reason1,?MODULE,?LINE]};
-		ok ->
-		    ok
-	    end
-    end,
-    
-    
     ?LOG_NOTICE("Server started ",[?MODULE]),
     
     TimeOut=0,
