@@ -4,9 +4,10 @@ After=network.target
 
 [Service]
 Type=forking
+WorkingDirectory=/home/ubuntu
 ExecStart=/home/ubuntu/sys_boot.sh
-PIDFile=/run/sys_boot.pid   
-Restart=on-failure	      
+PIDFile=/run/sys_boot.pid
+Restart=on-failure
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=multi-user.target

@@ -59,6 +59,11 @@ init([]) ->
     process_flag(trap_exit, true),
     timer:sleep(60*1000),
 
+    %%-- Very dirty connect nodes , to ensure that etcd will start distriubted 
+
+    ConnectResult=[{N1,N2,rpc:call(N1,net_adm,ping,[N2],5000)}||N1<-?ConnectNodes,
+								N2<-?ConnectNodes],
+    
     LogStart=rpc:call(node(),application,start,[log],2*5000),   
     %%-- init log
     [NodeName,_]=string:tokens(atom_to_list(node()),"@"),
@@ -97,6 +102,7 @@ init([]) ->
     ?LOG_NOTICE("LogStart ",[{log,LogStart}]),
     ?LOG_NOTICE("RdStart ",[{rd,RdStart}]),
     ?LOG_NOTICE("EtcdStart ",[{etcd,EtcdStart}]),
+    ?LOG_NOTICE("ConnectResult ",[ConnectResult]),
     ?LOG_NOTICE("CreateLogFileResult ",[CreateLogFileResult]),
     
     

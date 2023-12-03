@@ -1,6 +1,13 @@
 -define(DeploymentSpec,"permanent").
 -define(InfraSpec,"basic").
 
+-define(ConnectNodes,[control_a@c50,
+		      control_a@c200,
+		      control_a@c201,
+		      control_a@c202,
+		      control_a@c300
+		     ]).
+
 -define(MaxDetectTime,60*1000*1).
 
 -define(MainLogDir,"logs").
