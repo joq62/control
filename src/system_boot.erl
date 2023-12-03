@@ -62,8 +62,9 @@ init([]) ->
     LogStart=rpc:call(node(),application,start,[log],2*5000),   
     %%-- init log
     [NodeName,_]=string:tokens(atom_to_list(node()),"@"),
-    Home= os:getenv("HOME"),
-    LogsAtHome=filename:join(Home,?MainLogDir),
+    % Home= os:getenv("HOME"),
+ %   LogsAtHome=filename:join(Home,?MainLogDir),
+    LogsAtHome=?MainLogDir,
     CreateLogFileResult=case filelib:is_dir(LogsAtHome) of
 			     false->
 				 case file:make_dir(LogsAtHome) of
@@ -76,7 +77,7 @@ init([]) ->
 					     {error,Reason1}->
 						 {error,["Failed to create logger file ",Reason1,?MODULE,?LINE]};
 					     ok ->
-						 ok
+						 {ok,?LINE}
 					 end
 				 end;
 			     true ->
@@ -86,7 +87,7 @@ init([]) ->
 				     {error,Reason1}->
 					 {error,["Failed to create logger file ",Reason1,?MODULE,?LINE]};
 				     ok ->
-					 ok
+					 {ok,?LINE}
 				 end
 			 end,
     
