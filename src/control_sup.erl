@@ -31,15 +31,15 @@ init([]) ->
                  period => 1},
     ChildSpecs = [
 		  #{id => system_boot,               
-		    start => {system_boot,start_link,[]}},
-		  #{id => node_ctrl,               
-		    start => {node_ctrl,start_link,[]}},
-		  #{id => appl_ctrl,               
-		    start => {appl_ctrl,start_link,[]}},
-		  #{id =>orchestrator ,               
-		    start => {orchestrator,start_link,[]}},
-		  #{id => control,               
-		    start => {control,start_link,[]}}
+		    start => {system_boot,start_link,[]}}  %,
+%		  #{id => node_ctrl,               
+%		    start => {node_ctrl,start_link,[]}},
+%		  #{id => appl_ctrl,               
+%		    start => {appl_ctrl,start_link,[]}},
+%		  #{id =>orchestrator ,               
+%		    start => {orchestrator,start_link,[]}},
+%		  #{id => control,               
+%		    start => {control,start_link,[]}}
 		 ],
     {ok, {SupFlags, ChildSpecs}}.
 
