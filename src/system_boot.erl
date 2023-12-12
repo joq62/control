@@ -60,27 +60,35 @@ init([]) ->
     timer:sleep(60*1000),
 
     %%-- Very dirty connect nodes , to ensure that etcd will start distriubted 
-
-    ConnectResult=[{N1,N2,rpc:call(N1,net_adm,ping,[N2],5000)}||N1<-?ConnectNodes,
-								N2<-?ConnectNodes],
+    
+    Alive=[N||N<-?ConnectNodes,
+	      pong=:=net_adm:ping(N)],
+    
+    Nodes=lists:append([rpc:call(N,erlang,nodes,[],5000)||{pong,N}<-Alive]),
+    Nodes2=lists:usort(Nodes),
+    ConnectResult=[{N1,N2,rpc:call(N1,net_adm,ping,[N2],5000)}||N1<-Nodes2,
+								N2<-Nodes2,
+								N1<N2],
+    %    [{net_adm:ping(N),N}||N<-lists:usort(Nodes)],
+   % ConnectResult=[{N1,N2,rpc:call(N1,net_adm,ping,[N2],5000)}||N1<-?ConnectNodes,
+%								N2<-?ConnectNodes,
+%								N1<N2],
     
     LogStart=rpc:call(node(),application,start,[log],2*5000),   
     %%-- init log
     [NodeName,_]=string:tokens(atom_to_list(node()),"@"),
-    % Home= os:getenv("HOME"),
- %   LogsAtHome=filename:join(Home,?MainLogDir),
     LogsAtHome=?MainLogDir,
     CreateLogFileResult=case filelib:is_dir(LogsAtHome) of
 			     false->
 				 case file:make_dir(LogsAtHome) of
 				     {error,Reason}->
-					 {error,["Failed to make dir ",Reason,?MODULE,?LINE]};
+					 {error,[error,"Failed to make dir ",Reason,?MODULE,?LINE]};
 				     ok ->
 					 %%---------- create logger files
 					 NodeNodeLogDir=filename:join(LogsAtHome,NodeName),
 					 case log:create_logger(NodeNodeLogDir,?LocalLogDir,?LogFile,?MaxNumFiles,?MaxNumBytes) of
 					     {error,Reason1}->
-						 {error,["Failed to create logger file ",Reason1,?MODULE,?LINE]};
+						 {error,[error,"Failed to create logger file ",Reason1,?MODULE,?LINE]};
 					     ok ->
 						 {ok,?LINE}
 					 end
@@ -90,7 +98,7 @@ init([]) ->
 				 NodeNodeLogDir=filename:join(LogsAtHome,NodeName),
 				 case log:create_logger(NodeNodeLogDir,?LocalLogDir,?LogFile,?MaxNumFiles,?MaxNumBytes) of
 				     {error,Reason1}->
-					 {error,["Failed to create logger file ",Reason1,?MODULE,?LINE]};
+					 {error,[error,"Failed to create logger file ",Reason1,?MODULE,?LINE]};
 				     ok ->
 					 {ok,?LINE}
 				 end
