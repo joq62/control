@@ -10,4 +10,4 @@ PIDFile=/run/sys_boot.pid
 Restart=on-failure
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=multi-user.target
