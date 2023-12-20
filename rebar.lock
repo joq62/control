@@ -4,7 +4,7 @@
   0},
  {<<"log">>,
   {git,"https://github.com/joq62/log.git",
-       {ref,"d7f0deac722cd25895d17ea2210bc31b0024a455"}},
+       {ref,"37b78849ef299e69c54f056bb15be0ddf9e33729"}},
   0},
  {<<"resource_discovery">>,
   {git,"https://github.com/joq62/resource_discovery.git",
