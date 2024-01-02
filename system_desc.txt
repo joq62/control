@@ -1,5 +1,12 @@
+sshpass -p 'your_password' ssh your_username@remote_host 'your_command'
 
-    rpc:call(Node,Module,Function,Args,TimeOut)-> Result | {ok,Result} | {error,Reason} | {badrpc,Reason}  ({badrpc,{'EXIT',Reason}} | {badrpc,timeout})
+
+
+
+
+
+
+rpc:call(Node,Module,Function,Args,TimeOut)-> Result | {ok,Result} | {error,Reason} | {badrpc,Reason}  ({badrpc,{'EXIT',Reason}} | {badrpc,timeout})
 
     {badrpc,{'EXIT',{badarith,_}}}=rpc:call(node(),adder,divi,[2,0],5000),
     {badrpc,{'EXIT',{undef,[{glurk,glurk,[2,0],[]}]}}}=rpc:call(node(),glurk,glurk,[2,0],5000),
