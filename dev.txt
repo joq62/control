@@ -2,3 +2,7 @@ cat _build/default/rel/control/logs/connect/log.logs/file.1
 "./_build/default/rel/"++App"++"/logs/"++NodeName++"/log.logs/"++File
 
 ls _build/default/rel/control/add_test/_build/default/rel/add_test/logs/add_test/log.logs/file.1
+
+
+
+rebar3: $HOME/.cache/rebar3/bin/rebar3

@@ -1,6 +1,6 @@
 [{<<"appl_server">>,
   {git,"https://github.com/joq62/appl_server.git",
-       {ref,"f69eabad1162dd6e6981ea3d14747a3896e38f3b"}},
+       {ref,"473c64f39c1432be8b7ee7b41c3e9dce993cc597"}},
   0},
  {<<"cmn_server">>,
   {git,"https://github.com/joq62/cmn_server.git",
